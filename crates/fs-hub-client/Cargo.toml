@@ -1,0 +1,19 @@
+[package]
+name = "fs-hub-client"
+description = "Library programs embed to talk to the FreeSynergy hub; programs keep working without one (ADR 0019)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+fs-store.workspace = true
+fs-hub-proto.workspace = true
+capnp.workspace = true
+capnp-rpc.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
