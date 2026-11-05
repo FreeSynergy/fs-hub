@@ -776,6 +776,7 @@ dependencies = [
  "fs-hub-proto",
  "fs-store",
  "futures",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
