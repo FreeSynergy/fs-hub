@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 fs-store.workspace = true
 fs-hub-proto.workspace = true
+fs-interfaces.workspace = true
 capnp.workspace = true
 capnp-rpc.workspace = true
 tokio.workspace = true

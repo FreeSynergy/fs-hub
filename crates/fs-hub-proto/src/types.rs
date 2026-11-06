@@ -2,8 +2,10 @@
 //!
 //! Pattern: Value objects (+ Builder-style setters on `Manifest`) — what callers handle instead of wire structs.
 
-use fs_store::ActivityId;
+use fs_store::{ActivityId, Timestamp};
 use serde::{Deserialize, Serialize};
+
+use crate::Problem;
 
 /// What a program tells the hub when it registers (ADR 0019).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,17 +108,49 @@ pub struct PushOutcome {
     /// Sensitive or undeclared types.
     pub withheld: u32,
     /// Problems reported for single entries.
-    pub problems: Vec<String>,
+    pub problems: Vec<Problem>,
+}
+
+impl PushOutcome {
+    /// Add the outcome of the next piece of the same push.
+    pub fn absorb(&mut self, next: Self) {
+        self.last_accepted = self.last_accepted.max(next.last_accepted);
+        self.accepted += next.accepted;
+        self.skipped += next.skipped;
+        self.withheld += next.withheld;
+        self.problems.extend(next.problems);
+    }
+}
+
+/// One activity as a program hands it over: what it did, and when, if it may say so.
+#[derive(Clone, Debug)]
+pub struct Pushed {
+    /// The entry of the program's log.
+    pub activity: fs_store::Activity,
+    /// When the program did it; never set for a sensitive object (ADR 0029).
+    pub original_at: Option<Timestamp>,
+}
+
+/// What an answer of `pull` says about one activity besides the activity itself.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PullNote {
+    /// Summary of the object (after image, else before image, else the object the hub holds).
+    pub envelope: fs_store::Envelope,
+    /// When the program did it; `Activity::at` is when the hub applied it.
+    pub original_at: Option<Timestamp>,
 }
 
 /// Answer of `Session.pull`.
 #[derive(Clone, Debug, Default)]
 pub struct PullBatch {
-    /// Activities of other programs.
+    /// Activities of other programs. A `Null` payload on a state-changing kind means the content did
+    /// not come: asked for with `pull_envelopes`, or too large for any message.
     pub activities: Vec<fs_store::Activity>,
+    /// The note of each activity, by its id.
+    pub notes: std::collections::BTreeMap<ActivityId, PullNote>,
     /// The hub scanned up to here; acknowledge with `ack`.
     pub last: Option<ActivityId>,
-    /// More are waiting.
+    /// More are waiting. An answer can hold fewer than asked for: it is also cut by size.
     pub more: bool,
 }
 
@@ -145,5 +179,11 @@ pub enum ChangeNotice {
     Deleted {
         /// Object id.
         id: fs_store::ObjectId,
+    },
+    /// The feed ended without being asked to: changes may have been missed. To go on, subscribe again
+    /// and catch up with `pull`, in that order. Nothing follows this.
+    Ended {
+        /// Why it ended.
+        problem: Problem,
     },
 }

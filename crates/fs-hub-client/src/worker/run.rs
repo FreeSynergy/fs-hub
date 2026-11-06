@@ -6,7 +6,6 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 
-use capnp::message::ReaderOptions;
 use capnp_rpc::{RpcSystem, rpc_twoparty_capnp::Side, twoparty};
 use fs_hub_proto::common_capnp::subscription;
 use fs_hub_proto::hub_capnp::hub;
@@ -46,7 +45,7 @@ pub(super) async fn run(
         r.compat(),
         w.compat_write(),
         Side::Client,
-        ReaderOptions::default(),
+        fs_hub_proto::reader_options(),
     );
     let mut rpc = RpcSystem::new(Box::new(network), None);
     let hub: hub::Client = rpc.bootstrap(Side::Server);
@@ -67,8 +66,8 @@ pub(super) async fn run(
             Cmd::Push(acts, reply) => {
                 let _ = reply.send(push(&session, &acts).await);
             }
-            Cmd::Pull(since, limit, reply) => {
-                let _ = reply.send(pull(&session, since, limit).await);
+            Cmd::Pull(since, limit, envelope_only, reply) => {
+                let _ = reply.send(pull(&session, since, limit, envelope_only).await);
             }
             Cmd::Ack(id, reply) => {
                 let _ = reply.send(ack(&session, id).await);

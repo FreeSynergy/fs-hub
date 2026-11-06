@@ -28,6 +28,7 @@ mod command;
 mod connect;
 mod error;
 mod install;
+mod push_plan;
 mod session;
 mod status;
 mod sync;
@@ -35,7 +36,10 @@ mod worker;
 
 pub use connect::{connect, connect_at};
 pub use error::{Error, Result};
-pub use fs_hub_proto::{ChangeNotice, Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome};
+pub use fs_hub_proto::{
+    ChangeNotice, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, Manifest, Problem, ProgramInfo,
+    Proposal, PullBatch, PullNote, PushOutcome,
+};
 pub use install::offer_install;
 pub use session::HubSession;
 pub use status::HubStatus;

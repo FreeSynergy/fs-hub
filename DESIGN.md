@@ -18,24 +18,27 @@ on traits; concrete types are wired in `core/hub.rs`.
 | `core/presence.rs` (`Presence`, `LiveGuard`) | RAII / Guard | live-session count, uncounted on drop |
 | `core/activity.rs` (`ActivitySink`, `ActivitySource`) | Strategy (interface segregation) | push side and pull side are separate interfaces |
 | `core/collector.rs`, `core/apply.rs` (`ObjectCollector`) | Command executor | each pushed activity is applied to the hub store; sensitive / undeclared types withheld |
-| `core/log_source.rs` (`LogSource`) | Repository (read) + Observer | scans the hub log from the cursor; `changes()` is the broadcast feed |
+| `core/log_source.rs` (`LogSource`) | Repository (read) + Observer | scans the hub log from the cursor, cuts by count and size; `changes()` is the broadcast feed |
+| `core/originals.rs` (`OriginalTimes`, `StoreOriginals`) | Repository | when the program did what a hub log entry records, kept beside the log |
 | `core/visibility.rs` (`Visibility`) | Specification | other programs' activities of declared `reads` types |
 | `core/proposals/*` (`ProposalEngine`, `SharedIdentity`) | Strategy | same-person matching is replaceable; `candidates` / `pairing` / `linked` are its steps |
 | `fs-hub/server/*` | Adapter | capnp-rpc `Hub`, `Session`, `Subscription` servers translate to `HubCore`; `listen` = transport, `socket` = Factory |
-| `server/subscription.rs` | Observer | change feed -> program's `ChangeListener`; dropping the capability aborts the task |
+| `server/subscription.rs` | Observer | change feed -> `rpc::forward` -> program's `ChangeListener`; every end the program did not ask for goes through `ended`; dropping the capability stops it |
 | `fs-hub/daemon/*` | Facade / Template method / RAII | `Config`, `run` skeleton (open, bind, serve, clean up), `Daemon` thread handle |
 | `fs-hub-client/connect.rs` | Factory | socket path -> `HubStatus` |
 | `fs-hub-client/status.rs` (`HubStatus`) | State | `Connected` / `Absent`: same calls in both states, `sync_once` is a no-op when absent |
 | `fs-hub-client/session.rs` (`HubSession`) | Facade | typed async methods over the command channel |
+| `fs-hub-client/push_plan.rs` | Iterator-style batching | a push in pieces that fit a message; what cannot go stays as a problem |
 | `fs-hub-client/command.rs`, `worker/*` | Command + Adapter | each call is a `Cmd` enum value executed on the private RPC thread |
-| `fs-hub-client/worker/listener.rs` | Observer | hub calls our `ChangeListener`, becomes a `ChangeNotice` channel |
+| `fs-hub-client/worker/listener.rs` | Observer | hub calls our `ChangeListener`, `change` and `ended` become a `ChangeNotice` channel |
 | `fs-hub-client/sync/*` | Template method | push all, pull all; `apply` / `mark` are the steps |
-| `fs-hub-proto/convert/*` | Adapter | one file per wire struct (ids, lists, envelope, activity, manifest, program, proposal, outcome) |
+| `fs-hub-proto/convert/*` | Adapter | one file per wire struct (ids, lists, activity, manifest, program, proposal, outcome); envelope and uuids come from `fs_interfaces::rpc` |
+| `fs-hub-proto/limits.rs` (`PageBudget`, `reader_options`) | Specification + Value object | what fits a message, in one place for hub and client |
 | `fs-hub-proto/{types,content}.rs` | Value objects / Specification | plain shapes; `same_content` is shared by hub and client |
 
 ## State
 
-Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests). Test dependency bumped to fs-calendar v0.4.0 (calendar provider rule); 9 tests before and after.
+Version 0.3.0 (contract and `rpc` from `fs-interfaces` v0.24.0; capnp/capnp-rpc 0.27; Rust 1.89, which `rpc` needs; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests). Test dependency bumped to fs-calendar v0.4.0 (calendar provider rule); 9 tests before and after.
 
 | Area | State |
 |---|---|
@@ -45,14 +48,17 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 | Hub store: `objects.db` (a `TursoStore` with all collected objects and the hub's own log) and `state.db` (per-program manifest + cursors) | done |
 | Apply pushed activities, idempotent by activity id (per-program `last_accepted`, activity ids are strictly increasing per store); content-identical re-pushes are skipped; deletes and undo images are applied; log-only kinds (`Invite`, `Accept`, ...) are kept when the hub holds the object | done |
 | Per-program pull cursor kept by the hub; `ack` moves it forward; cursors survive restart | done |
+| Size limits: pull answers and push batches cut by size, one object at most 16 MiB, reader limit 128 MiB on both sides (see Limits) | done |
+| `pull(..., envelopeOnly)`; `HubSession::pull_envelopes`, `PullBatch::notes` | done |
+| `Activity.originalAt` sent, kept, delivered; `originalActor` empty for everybody | done |
 | Filtering: a program only gets activities of **other** programs whose object type it declared in `reads`; only types in `writes` are collected from it | done |
-| `subscribe`: live `Change` notices (same filter) over the common `ChangeListener`; dropping the `Subscription` capability ends it | done |
+| `subscribe`: live `Change` notices (same filter) over the common `ChangeListener`; dropping the `Subscription` capability ends it; `ended` on lag, overflow or an untellable change, `ChangeNotice::Ended` in the client; log-only activities are not told (they change no object) | done |
 | `proposals`: `Profile` objects of **different** programs sharing a normalised e-mail or phone (>= 6 digits), same `kind`, not groups, not already linked by a `Relationship` | done |
 | Sensitive data (ADR 0029) | **never collected**: a push with `envelope.sensitive` is counted as `withheld`, any older copy at the hub is deleted; never proposed, never delivered |
 | Client `fs-hub-client`: `connect` / `connect_at` -> `HubStatus::{Connected, Absent}`; `offer_install()` returns the message only; `HubSession::{push, pull, ack, programs, proposals, subscribe, sync_once}` | done. The RPC runs on a private thread, the session is `Send + Sync` |
 | `sync_once(store)`: push unsynced -> `mark_synced`; pull -> apply into the program's store -> `ack`; pulled changes are marked synced so they do not travel back | done |
 | Peer check: connection must come from the socket owner's uid (`SO_PEERCRED`) | done (minimal) |
-| Tests | 7 end-to-end (`crates/fs-hub/tests/{sharing,proposals,push_restart,cursors,subscribe,absent,refusal}.rs`, shared `common`) + 2 envelope round-trip tests (`fs-hub-proto/tests/envelope.rs`); the e2e tests use real `fs-people-core` + `fs-calendar-core`, own stores): sharing contact -> event, updates/deletes, no echo, declared-types filter, proposals without sensitive data, idempotent push and restart, hub-kept pull cursor, subscribe, no hub / stale socket / hub appears later, second hub refused, bad manifest |
+| Tests | end-to-end in `crates/fs-hub/tests/`: `pull_size` (80 x 1 MiB, in order across pages, `sync_once` both ways), `oversize`, `envelope_only`, `original_time`, `lag`, `ended` on a real hub over a real socket (`common/raw` speaks the wire without the client), plus `{sharing,proposals,push_restart,cursors,subscribe,absent,refusal}.rs`; `fs-hub-proto/tests/{envelope,pushed}.rs`, unit tests in `limits.rs`, `push_plan.rs`, `worker/listener.rs`; the older e2e tests use real `fs-people-core` + `fs-calendar-core`, own stores): sharing contact -> event, updates/deletes, no echo, declared-types filter, proposals without sensitive data, idempotent push and restart, hub-kept pull cursor, subscribe, no hub / stale socket / hub appears later, second hub refused, bad manifest |
 | Example | `cargo run -p fs-hub --example two_programs` |
 
 ## Crates
@@ -60,7 +66,7 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 * `fs-hub-proto`: re-export of the contract from `fs-interfaces`, conversions wire <-> `fs-store` types. A third crate beyond the two asked for, so daemon and client share the contract without depending on each other.
 * `fs-hub`: `HubCore` (connecting logic, no RPC, behind the traits `ProgramRegistry`, `ActivitySink`, `ActivitySource`, `ProposalEngine`, `CursorRepository`), `server` (RPC adapter), `Daemon` (own thread, for tests/embedding), binary.
 * `fs-hub-client`: what programs embed.
-* Dependencies: `capnp`/`capnp-rpc` 0.27 (MIT), `fs-interfaces` (git tag v0.1.0), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path).
+* Dependencies: `capnp`/`capnp-rpc` 0.27 (MIT), `fs-interfaces` (git tag v0.24.0, feature `rpc`), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path).
 
 ## Decisions
 
@@ -71,6 +77,25 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 * **One bad program cannot see more than it declared**: `reads` filter on the hub side. `writes` is enforced too (undeclared types are `withheld`).
 * **Proposals only across programs.** Duplicates inside one program are that program's own business (`fs-people-core` finds them). The hub only proposes; a human confirms in a program, which writes the `Relationship` (`owl:sameAs`) that the hub then respects.
 * **Hub store is unencrypted** (no key vault yet), which is why sensitive objects are refused instead of stored.
+* **Sensitive content does not travel.** The client sends only the envelope of a sensitive image: the hub needs the mark to withhold the object and drop an older copy, not the content. The hub applies the same rule to whatever arrives.
+* **`originalAt`: the time the program did it.** Sent with the push, kept in `state.db` by the id of the hub's log entry (the store sets the log's own `at`), delivered with `pull`, so `at` stays the time the hub applied it. Never for a withheld or sensitive object (ADR 0029): the client does not send it, the hub keeps none for such an entry, also not for the delete that removes an older copy, and does not deliver one. Written after the change, not in one transaction: a crash in between loses only the time.
+* **`originalActor` stays empty and the hub delivers it to nobody** (strategy decision, 2026-11-06). Who did something can only be released by the person; a manifest cannot grant this, since a program would be granting it for itself. The hub neither reads nor stores the field, whatever a program sends. `actor` remains the program's name.
+* **`Lagged` ends the feed.** A lagging program could catch up with `pull`, but the contract only has `ended` to tell it that changes were missed, and a feed must never end silently. So it ends; the program subscribes again and then pulls, in that order.
+
+## Limits
+
+A message above the reader's limit ends the whole connection with all its capabilities, so nobody may send one. All in `fs-hub-proto/limits.rs`:
+
+| Limit | Value | Why |
+|---|---|---|
+| `rpc::MAX_PAGE_BYTES` | 32 MiB | a pull answer and a push piece end before the next activity would pass it; at least one activity, so paging advances |
+| `MAX_OBJECT_BYTES` (`rpc::MAX_INTAKE_BYTES`) | 16 MiB of JSON per image | the same limit every server has |
+| Largest allowed activity | 48 MiB | two images and the envelope summary |
+| `MAX_HUB_MESSAGE_BYTES` (2 x `rpc::MAX_MESSAGE_BYTES`) | 128 MiB, `ReaderOptions` on both sides | holds the largest allowed activity with room to spare, and any entry an older hub could have logged up to about this size |
+
+* **Weight, not count.** An activity weighs its JSON payload, so an update counts its object twice, plus `rpc::envelope_weight` and a fixed frame. The count limit (`limit`, default 200, at most 1000) still applies. The cursor logic is unchanged: an answer ends before the activity that does not fit, `last` is the last one scanned before it, `more` says one is waiting.
+* **Above the limit at push.** The hub checks the `after` image (log-only: the payload) after the sensitive and `writes` rules, reports a problem of type `too-large` (413), and the cursor moves past it, as for any bad entry. The hub keeps its older version of that object until a smaller one comes; the pushing program is the one told, readers are not. `HubSession::push` checks too, because an object above the message limit could not reach the hub at all: the entry stays home, the outcome has the same problem and `last_accepted` moves past it. There an undeclared large type counts as a problem, not as `withheld`, since the client does not know the rule. A large `before` image is left out: the hub keeps its own.
+* **Above the message limit in the hub's log.** Only an entry older than these limits can be. It goes with an empty payload, so its reader moves past it: `sync_once` reports it in `failed`, `envelopeOnly` still shows what it is.
 
 ## Not done yet
 
@@ -85,7 +110,10 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 * Conflict handling: concurrent edits of one object in two programs are last-write-wins at the hub (ADR 0020 "Konfliktzustand" is open).
 * Addressing (`to`/`cc`) is carried but not yet used for filtering.
 * The calendar-participant -> contact link is not made by the hub; the calendar finds the pulled contact by e-mail itself.
-* Limits: batch sizes are fixed (push 100, pull 200 default); no back-pressure on `subscribe`; `Activity.at` travels with millisecond precision.
+* Limits: batch sizes are fixed (the client reads 32 log entries at a time, pull 200 default), all limits above are constants; `Activity.at` travels with millisecond precision. A log scan keeps up to 32 entries of up to 32 MiB in memory.
+* `proposals` is not cut by size: names up to an object's size, in numbers, could pass a message. Nothing near that has been seen.
+* **`rpc` transport not adopted**: `rpc::serve` and `rpc::connect` always use default `ReaderOptions`, and `BoundSocket`'s listener is private, so the hub cannot use them with its raised limit. It keeps its own accept loop, `bind_socket` and peer check, without the lock file and the euid check of `rpc`. The client does not check who serves the socket. Taken from `rpc`: envelope, uuids, default socket path, feed forwarding, `Problem`, limits.
+* A consumer whose `change` never returns only stops the feed for itself; `ended` cannot overtake that call (see Needed elsewhere), and if the feed lagged meanwhile nothing more arrives to trigger the overflow rule. It ends with the connection.
 
 ## Needed elsewhere
 
@@ -93,6 +121,8 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 * **fs-store**: (a) `Store::put` always stamps `updated`/creates a new activity; a "apply remote change without a new local log entry as unsynced" (or `put_synced`) would remove the need for the client's mark-synced dance and the prefix race; (b) `ActivityFilter` has no object-type filter, so the hub reads and parses payloads to filter by type; (c) `mark_synced` is prefix-only; (d) an `ObjectId` can only be UUIDv7, so the hub cannot derive deterministic ids for its state objects.
 * **fs-contacts**: index `kind`, `email`, `phone` are read by the hub's proposals; they should be documented as part of the hub contract (the hub knows these index keys). Better: a generic "identity keys" index convention in `data/<domain>/standards.md`.
 * **fs-calendar**: `Event` participants are only e-mail strings; a hub-level "participant -> contact" resolution would need a convention for which index key carries identity (`participant_email` vs contacts' `email`).
+* **`fs-interfaces`**: (a) `rpc::serve`/`connect` need a way to pass `ReaderOptions`, or `BoundSocket` an accessor for its listener; (b) `common.capnp` promises `ended` when "its listener failed", but capnp-rpc 0.27 fails every later call on a capability after a stream call answered with an error, and later calls wait while a `change` is under way, so a listener that failed or never answers cannot be told (`local.rs`); the hub ends the feed and releases the listener, which is all that consumer sees. Our client never answers `change` with an error for that reason; (c) `rpc::Problem` has `write` but no reader, the hub has its own `read_problem`; (d) `rpc::read_envelope` refuses an envelope without timestamps, which `Activity.envelope` of a log-only entry was until now: pull answers now carry the stored object's envelope.
+* **`fs-history-hub`**: pins hub v0.2.0. At the next bump `DEFAULT_MAX_BATCH` and the "too large" advice can go, `pull_envelopes` fits it (it reads only summaries), and `tests/large_batch.rs` expects the old failure.
 * **ADR 0019** names the socket but not the contract version negotiation: 0.1 requires an exact match for now.
 
 ## Open questions
@@ -100,4 +130,3 @@ Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; n
 * Should the hub keep objects whose type no other program reads (it does, as the central copy)?
 * Should proposals for a single program's own duplicates also be shown, or stay with the program?
 * Who stores "dismissed" proposals: the hub (shared) or the program (as contacts' open point says)?
-* Is the hub log's actor = program name acceptable, or should the original actor (person) be kept in an extra field?

@@ -18,16 +18,22 @@
 )]
 
 // The schemas and the generated code live in `fs-interfaces` (ADR 0045); re-exported under the old paths.
+pub use fs_interfaces::rpc::Problem;
 pub use fs_interfaces::{common_capnp, hub_capnp};
 
 mod content;
 mod contract;
 mod convert;
 mod error;
+mod limits;
 mod types;
 
 pub use content::same_content;
 pub use contract::{CONTRACT_VERSION, default_socket_path};
 pub use convert::*;
 pub use error::{Error, Result};
+pub use limits::{
+    MAX_ACTIVITY_BYTES, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, PageBudget, activity_weight,
+    json_len, reader_options, too_large,
+};
 pub use types::*;

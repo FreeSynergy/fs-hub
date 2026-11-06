@@ -15,7 +15,7 @@ pub(crate) type Reply<T> = oneshot::Sender<Result<T>>;
 /// One request to the worker.
 pub(crate) enum Cmd {
     Push(Vec<Activity>, Reply<PushOutcome>),
-    Pull(Option<ActivityId>, u32, Reply<PullBatch>),
+    Pull(Option<ActivityId>, u32, bool, Reply<PullBatch>),
     Ack(ActivityId, Reply<()>),
     Programs(Reply<Vec<ProgramInfo>>),
     Proposals(Reply<Vec<Proposal>>),

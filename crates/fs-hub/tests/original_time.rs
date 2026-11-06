@@ -1,0 +1,151 @@
+//! End-to-end: `originalAt` travels and stays; `originalActor` is delivered to nobody; a sensitive
+//! object says neither (ADR 0029).
+
+mod common;
+
+use std::time::Duration;
+
+use common::raw::register;
+use common::{Env, config, note, notes_manifest, session};
+use fs_hub::Daemon;
+use fs_store::ActivityFilter;
+use fs_store::traits::{ActivityLog, ObjectRepository};
+
+#[tokio::test]
+async fn original_at_arrives_and_survives_a_restart() {
+    let mut env = Env::start();
+    let store = env.store("wiki").await;
+    let done = store.put(note("n", 8), "a person").await.unwrap();
+    // The hub only hears of it later, so its own time differs.
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let wiki = session(&env, notes_manifest("wiki")).await;
+    wiki.sync_once(store.as_ref()).await.unwrap();
+
+    let reader = session(&env, notes_manifest("reader")).await;
+    let page = reader.pull(None, 0).await.unwrap();
+    let a = &page.activities[0];
+    let at = page.notes[&a.id].original_at.expect("originalAt arrives");
+    assert_eq!(at.timestamp_millis(), done.at.timestamp_millis());
+    assert!(
+        a.at.timestamp_millis() >= at.timestamp_millis() + 50,
+        "`at` is the hub's"
+    );
+    assert_eq!(a.actor, "wiki", "the program, never the person");
+
+    drop((wiki, reader));
+    env.hub.take().unwrap().stop().unwrap();
+    env.hub = Some(Daemon::spawn(config(&env.dir)).unwrap());
+    let reader = session(&env, notes_manifest("reader")).await;
+    let page = reader.pull(None, 0).await.unwrap();
+    let kept = page.notes[&page.activities[0].id].original_at;
+    assert_eq!(
+        kept.map(|t| t.timestamp_millis()),
+        Some(done.at.timestamp_millis())
+    );
+}
+
+#[tokio::test]
+async fn original_actor_reaches_nobody_even_if_a_program_sends_it() {
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let env = Env::start();
+            let store = env.store("raw").await;
+            store.put(note("n", 8), "a person").await.unwrap();
+            let log = store.activities(&ActivityFilter::default()).await.unwrap();
+            let writer = register(&env.socket(), &notes_manifest("raw")).await;
+            assert_eq!(writer.push(&log, "ada@example.org").await.accepted, 1);
+
+            let reader = register(&env.socket(), &notes_manifest("reader")).await;
+            let answer = reader.pull(None, 0, false).await;
+            let seen = &answer.activities[0];
+            assert_eq!(seen.original_actor, "");
+            assert_eq!(seen.actor, "raw");
+            assert!(seen.original_at_ms.is_some());
+            let held = env.hub().core().store();
+            let log = held.activities(&ActivityFilter::default()).await.unwrap();
+            assert!(
+                !format!("{log:?}").contains("ada@example.org"),
+                "not kept either"
+            );
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn a_sensitive_object_says_neither_even_if_a_program_claims_them() {
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let env = Env::start();
+            let store = env.store("raw").await;
+            let plain = note("was plain", 8);
+            let mut marked = plain.clone();
+            let id = plain.envelope.id;
+            store.put(plain, "a person").await.unwrap();
+            marked.envelope.sensitive = vec!["pd:Health".into()];
+            store.put(marked, "a person").await.unwrap();
+            let log = store.activities(&ActivityFilter::default()).await.unwrap();
+            let writer = register(&env.socket(), &notes_manifest("raw")).await;
+
+            // First the plain version; then the marked one, claiming a time and a person.
+            writer.push(&log[..1], "").await;
+            let outcome = writer
+                .push_claiming(&log[1..], "ada@example.org", Some(1_800_000_000_000))
+                .await;
+            assert_eq!(outcome.withheld, 1);
+            assert!(env.hub().core().store().get(id).await.unwrap().is_none());
+
+            // What readers get is the removal of the old copy: it says no time and no person.
+            let reader = register(&env.socket(), &notes_manifest("reader")).await;
+            let answer = reader.pull(None, 0, false).await;
+            let kinds: Vec<_> = answer.activities.iter().map(|a| a.kind.as_str()).collect();
+            assert_eq!(kinds, ["Create", "Delete"]);
+            let removal = &answer.activities[1];
+            assert_eq!(removal.original_at_ms, None);
+            assert_eq!(removal.original_actor, "");
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn deleting_what_was_sensitive_in_the_program_says_no_time() {
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let env = Env::start();
+            let store = env.store("raw").await;
+            let plain = note("was plain", 8);
+            let mut marked = plain.clone();
+            let id = plain.envelope.id;
+            store.put(plain, "a person").await.unwrap();
+            marked.envelope.sensitive = vec!["pd:Health".into()];
+            store.put(marked, "a person").await.unwrap();
+            store.delete(id, "a person").await.unwrap();
+            let log = store.activities(&ActivityFilter::default()).await.unwrap();
+            let writer = register(&env.socket(), &notes_manifest("raw")).await;
+
+            // The hub holds the plain copy and never hears of the mark, only of the delete.
+            writer.push(&log[..1], "").await;
+            let outcome = writer
+                .push_claiming(&log[2..], "", Some(1_800_000_000_000))
+                .await;
+            assert_eq!(outcome.accepted, 1);
+
+            let reader = register(&env.socket(), &notes_manifest("reader")).await;
+            let answer = reader.pull(None, 0, false).await;
+            assert_eq!(answer.activities[1].kind, "Delete");
+            assert_eq!(answer.activities[1].original_at_ms, None);
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn through_the_client_a_sensitive_object_is_withheld_with_no_time() {
+    let env = Env::start();
+    let store = env.store("wiki").await;
+    let mut secret = note("secret", 8);
+    secret.envelope.sensitive = vec!["pd:Health".into()];
+    store.put(secret, "a person").await.unwrap();
+    let wiki = session(&env, notes_manifest("wiki")).await;
+    assert_eq!(wiki.sync_once(store.as_ref()).await.unwrap().withheld, 1);
+    let reader = session(&env, notes_manifest("reader")).await;
+    assert!(reader.pull(None, 0).await.unwrap().activities.is_empty());
+}

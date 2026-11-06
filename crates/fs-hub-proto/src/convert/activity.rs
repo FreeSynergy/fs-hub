@@ -1,16 +1,22 @@
 //! Activities on the wire.
 //!
-//! Pattern: Adapter — `fs_store::Activity` <-> `hub.capnp` `Activity`; the typed envelope is the routing summary, the JSON payload carries the full images.
+//! Pattern: Adapter — `fs_store::Activity` <-> `hub.capnp` `Activity`, one form per direction: a push
+//! says when the program did it, an answer of `pull` carries what the hub knows besides the log entry.
+//! The typed envelope is the routing summary, the JSON payload carries the full images; a `Null`
+//! payload stays empty on the wire. `originalActor` is written by nobody: only the person can release
+//! it, and no manifest can (see `DESIGN.md`).
 
-use fs_store::{Activity, ActivityKind, Envelope, ObjectId};
+use std::collections::BTreeMap;
 
-use super::envelope::write_envelope;
+use fs_interfaces::rpc::{read_envelope, write_envelope};
+use fs_store::{Activity, ActivityId, ActivityKind, Envelope, ObjectId};
+
 use super::ids::{from_ms, ms, read_activity_id, read_uuid, write_activity_id, write_uuid};
 use crate::hub_capnp as hub;
-use crate::{Error, Result};
+use crate::{Error, PullNote, Pushed, Result};
 
 /// The object envelope an activity is about (after image, else before image), if it carries one.
-fn summary_of(a: &Activity) -> Option<Envelope> {
+pub fn summary_of(a: &Activity) -> Option<Envelope> {
     if !a.kind.changes_state() {
         return None;
     }
@@ -18,8 +24,12 @@ fn summary_of(a: &Activity) -> Option<Envelope> {
     cs.after.or(cs.before).map(|o| o.envelope)
 }
 
-/// Store activity -> wire.
-pub fn write_activity(mut b: hub::activity::Builder<'_>, a: &Activity) -> Result<()> {
+fn write_activity(
+    mut b: hub::activity::Builder<'_>,
+    a: &Activity,
+    summary: Option<&Envelope>,
+    original_at: Option<fs_store::Timestamp>,
+) -> Result<()> {
     write_activity_id(b.reborrow().init_id(), Some(a.id));
     b.set_kind(a.kind.as_str());
     write_uuid(b.reborrow().init_object(), Some(a.object.as_uuid()));
@@ -27,19 +37,23 @@ pub fn write_activity(mut b: hub::activity::Builder<'_>, a: &Activity) -> Result
     b.reborrow().init_at().set_unix_millis(ms(a.at));
     b.set_has_target(a.target.is_some());
     write_activity_id(b.reborrow().init_target(), a.target);
-    match summary_of(a) {
-        Some(env) => write_envelope(b.reborrow().init_envelope(), &env),
+    match summary {
+        Some(env) => write_envelope(b.reborrow().init_envelope(), env),
         None => write_uuid(
             b.reborrow().init_envelope().init_id(),
             Some(a.object.as_uuid()),
         ),
     }
-    b.set_payload(&serde_json::to_vec(&a.payload)?);
+    if !a.payload.is_null() {
+        b.set_payload(&serde_json::to_vec(&a.payload)?);
+    }
+    if let Some(t) = original_at {
+        b.init_original_at().set_unix_millis(ms(t));
+    }
     Ok(())
 }
 
-/// Wire activity -> store activity (`synced` is false: it is not in the receiver's log).
-pub fn read_activity(r: hub::activity::Reader<'_>) -> Result<Activity> {
+fn read_activity(r: hub::activity::Reader<'_>) -> Result<Activity> {
     let id = read_activity_id(r.get_id()?)?
         .ok_or_else(|| Error::Invalid("activity without id".into()))?;
     let object = read_uuid(r.get_object()?)
@@ -50,6 +64,7 @@ pub fn read_activity(r: hub::activity::Reader<'_>) -> Result<Activity> {
     } else {
         None
     };
+    let payload = r.get_payload()?;
     Ok(Activity {
         id,
         kind,
@@ -57,25 +72,93 @@ pub fn read_activity(r: hub::activity::Reader<'_>) -> Result<Activity> {
         actor: r.get_actor()?.to_string()?,
         at: from_ms(r.get_at()?.get_unix_millis()),
         target,
-        payload: serde_json::from_slice(r.get_payload()?)?,
+        payload: if payload.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::from_slice(payload)?
+        },
         synced: false,
     })
 }
 
-/// A whole list of activities -> wire.
-pub fn write_activities(
+fn read_original_at(r: hub::activity::Reader<'_>) -> Result<Option<fs_store::Timestamp>> {
+    if !r.has_original_at() {
+        return Ok(None);
+    }
+    Ok(Some(from_ms(r.get_original_at()?.get_unix_millis())))
+}
+
+/// Log entries of a program -> wire, each with the time the program did it. A sensitive object never
+/// says when (ADR 0029).
+pub fn write_pushed_list(
     mut list: capnp::struct_list::Builder<'_, hub::activity::Owned>,
     items: &[Activity],
 ) -> Result<()> {
     for (i, a) in items.iter().enumerate() {
-        write_activity(list.reborrow().get(i as u32), a)?;
+        let summary = summary_of(a);
+        let sensitive = summary.as_ref().is_some_and(|e| !e.sensitive.is_empty());
+        let original_at = (!sensitive).then_some(a.at);
+        write_activity(
+            list.reborrow().get(i as u32),
+            a,
+            summary.as_ref(),
+            original_at,
+        )?;
     }
     Ok(())
 }
 
-/// A whole wire list -> store activities.
-pub fn read_activities(
+/// Wire -> what a program handed over.
+pub fn read_pushed_list(
     list: capnp::struct_list::Reader<'_, hub::activity::Owned>,
-) -> Result<Vec<Activity>> {
-    list.iter().map(read_activity).collect()
+) -> Result<Vec<Pushed>> {
+    list.iter()
+        .map(|r| {
+            Ok(Pushed {
+                activity: read_activity(r)?,
+                original_at: read_original_at(r)?,
+            })
+        })
+        .collect()
+}
+
+/// An answer of `pull` -> wire. An activity without a note goes without a summary.
+pub fn write_pulled_list(
+    mut list: capnp::struct_list::Builder<'_, hub::activity::Owned>,
+    items: &[Activity],
+    notes: &BTreeMap<ActivityId, PullNote>,
+) -> Result<()> {
+    for (i, a) in items.iter().enumerate() {
+        let note = notes.get(&a.id);
+        write_activity(
+            list.reborrow().get(i as u32),
+            a,
+            note.map(|n| &n.envelope),
+            note.and_then(|n| n.original_at),
+        )?;
+    }
+    Ok(())
+}
+
+type Pulled = (Vec<Activity>, BTreeMap<ActivityId, PullNote>);
+
+/// Wire -> an answer of `pull`.
+pub(super) fn read_pulled_list(
+    list: capnp::struct_list::Reader<'_, hub::activity::Owned>,
+) -> Result<Pulled> {
+    let mut activities = Vec::with_capacity(list.len() as usize);
+    let mut notes = BTreeMap::new();
+    for r in list {
+        let a = read_activity(r)?;
+        let wire = r.get_envelope()?;
+        if wire.has_published() {
+            let note = PullNote {
+                envelope: read_envelope(wire)?,
+                original_at: read_original_at(r)?,
+            };
+            notes.insert(a.id, note);
+        }
+        activities.push(a);
+    }
+    Ok((activities, notes))
 }

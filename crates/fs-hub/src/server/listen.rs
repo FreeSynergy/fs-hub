@@ -6,7 +6,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use capnp::message::ReaderOptions;
 use capnp_rpc::{RpcSystem, new_client, rpc_twoparty_capnp::Side, twoparty};
 use fs_hub_proto::hub_capnp::hub;
 use tokio::net::{UnixListener, UnixStream};
@@ -48,7 +47,7 @@ fn spawn_connection(stream: UnixStream, bootstrap: hub::Client) {
         r.compat(),
         w.compat_write(),
         Side::Server,
-        ReaderOptions::default(),
+        fs_hub_proto::reader_options(),
     );
     let rpc = RpcSystem::new(Box::new(network), Some(bootstrap.client));
     tokio::task::spawn_local(async move {

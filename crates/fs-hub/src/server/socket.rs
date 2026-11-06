@@ -11,11 +11,11 @@ use crate::{Error, Result};
 
 /// Bind the socket: refuse if a live hub already owns it, remove a stale file, tighten permissions.
 pub async fn bind_socket(path: &Path) -> Result<UnixListener> {
-    if let Some(dir) = path.parent() {
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)?;
-            std::fs::set_permissions(dir, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
-        }
+    if let Some(dir) = path.parent()
+        && !dir.exists()
+    {
+        std::fs::create_dir_all(dir)?;
+        std::fs::set_permissions(dir, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
     }
     if path.exists() {
         if UnixStream::connect(path).await.is_ok() {

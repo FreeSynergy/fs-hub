@@ -2,6 +2,8 @@
 //!
 //! Pattern: Value object — counters and problems, nothing else.
 
+use crate::Problem;
+
 /// What one sync did.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SyncReport {
@@ -14,7 +16,7 @@ pub struct SyncReport {
     /// ... not collected (sensitive, ADR 0029; or not a declared `writes` type).
     pub withheld: u32,
     /// Problems the hub reported for single entries.
-    pub problems: Vec<String>,
+    pub problems: Vec<Problem>,
     /// Activities received from other programs.
     pub pulled: usize,
     /// ... changing the local store.

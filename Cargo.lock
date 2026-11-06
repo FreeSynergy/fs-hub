@@ -631,7 +631,7 @@ source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.4.1#c33161e17cab
 dependencies = [
  "async-trait",
  "chrono",
- "fs-interfaces",
+ "fs-interfaces 0.5.0",
  "fs-jscalendar",
  "fs-store",
  "fs-tasks-core",
@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "fs-hub"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "capnp",
@@ -652,6 +652,7 @@ dependencies = [
  "fs-calendar-core",
  "fs-hub-client",
  "fs-hub-proto",
+ "fs-interfaces 0.24.0",
  "fs-people-core",
  "fs-store",
  "futures",
@@ -667,12 +668,13 @@ dependencies = [
 
 [[package]]
 name = "fs-hub-client"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "capnp",
  "capnp-rpc",
  "chrono",
  "fs-hub-proto",
+ "fs-interfaces 0.24.0",
  "fs-store",
  "futures",
  "serde_json",
@@ -683,11 +685,11 @@ dependencies = [
 
 [[package]]
 name = "fs-hub-proto"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "capnp",
  "chrono",
- "fs-interfaces",
+ "fs-interfaces 0.24.0",
  "fs-store",
  "serde",
  "serde_json",
@@ -701,6 +703,22 @@ version = "0.5.0"
 source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.5.0#a3573feb6e858423d2ad93bacd21b73c57355b4a"
 dependencies = [
  "capnp",
+]
+
+[[package]]
+name = "fs-interfaces"
+version = "0.24.0"
+source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.24.0#8ccb95326d0a693c8db8e0d595fcb740159f9b9d"
+dependencies = [
+ "capnp",
+ "capnp-rpc",
+ "chrono",
+ "fs-store",
+ "futures",
+ "rustix 1.1.6",
+ "tokio",
+ "tokio-util",
+ "uuid",
 ]
 
 [[package]]
@@ -726,7 +744,7 @@ dependencies = [
  "async-trait",
  "calcard",
  "chrono",
- "fs-interfaces",
+ "fs-interfaces 0.5.0",
  "fs-store",
  "serde",
  "serde_json",
@@ -758,7 +776,7 @@ source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.4.1#672b833b65fdccc
 dependencies = [
  "async-trait",
  "chrono",
- "fs-interfaces",
+ "fs-interfaces 0.5.0",
  "fs-jscalendar",
  "fs-store",
  "serde",

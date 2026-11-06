@@ -5,8 +5,9 @@
 
 use std::sync::Arc;
 
-use fs_store::Activity;
+use fs_hub_proto::summary_of;
 use fs_store::traits::ObjectRepository;
+use fs_store::{Activity, Envelope};
 
 /// The visibility rule of `pull` and `subscribe`.
 pub struct Visibility {
@@ -19,29 +20,38 @@ impl Visibility {
         Self { objects }
     }
 
-    /// AS2 type an activity is about (state-changing: from the images; log-only: the stored object).
-    pub async fn type_of(&self, a: &Activity) -> Option<String> {
+    /// Summary of the object an activity is about (state-changing: from the images; log-only: the
+    /// stored object).
+    pub async fn envelope_of(&self, a: &Activity) -> Option<Envelope> {
         if a.kind.changes_state() {
-            let cs = a.change_set().ok()?;
-            cs.after.or(cs.before).map(|o| o.envelope.object_type)
+            summary_of(a)
         } else {
             self.objects
                 .get(a.object)
                 .await
                 .ok()
                 .flatten()
-                .map(|o| o.envelope.object_type)
+                .map(|o| o.envelope)
         }
+    }
+
+    /// The summary, if `program` (with these `reads`) gets this activity.
+    pub async fn visible_envelope(
+        &self,
+        program: &str,
+        reads: &[String],
+        a: &Activity,
+    ) -> Option<Envelope> {
+        if a.actor == program {
+            return None;
+        }
+        self.envelope_of(a)
+            .await
+            .filter(|e| reads.contains(&e.object_type))
     }
 
     /// Would `program` (with these `reads`) get this activity?
     pub async fn allows(&self, program: &str, reads: &[String], a: &Activity) -> bool {
-        if a.actor == program {
-            return false;
-        }
-        match self.type_of(a).await {
-            Some(t) => reads.contains(&t),
-            None => false,
-        }
+        self.visible_envelope(program, reads, a).await.is_some()
     }
 }

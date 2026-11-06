@@ -5,7 +5,7 @@
 use fs_hub_proto::hub_capnp::{hub, session};
 use fs_hub_proto::{
     Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, read_program_info, read_proposal,
-    read_pull_batch, read_push_outcome, write_activities, write_activity_id, write_manifest,
+    read_pull_batch, read_push_outcome, write_activity_id, write_manifest, write_pushed_list,
 };
 use fs_store::{Activity, ActivityId};
 
@@ -20,7 +20,7 @@ pub(super) async fn register(hub: &hub::Client, manifest: &Manifest) -> Result<s
 
 pub(super) async fn push(s: &session::Client, acts: &[Activity]) -> Result<PushOutcome> {
     let mut req = s.push_request();
-    write_activities(
+    write_pushed_list(
         req.get()
             .init_activities(u32::try_from(acts.len()).expect("batch fits u32")),
         acts,
@@ -33,12 +33,14 @@ pub(super) async fn pull(
     s: &session::Client,
     since: Option<ActivityId>,
     limit: u32,
+    envelope_only: bool,
 ) -> Result<PullBatch> {
     let mut req = s.pull_request();
     {
         let mut p = req.get();
         write_activity_id(p.reborrow().init_since(), since);
         p.set_limit(limit);
+        p.set_envelope_only(envelope_only);
     }
     let resp = req.send().promise.await?;
     Ok(read_pull_batch(resp.get()?)?)

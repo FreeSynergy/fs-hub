@@ -6,14 +6,13 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use capnp_rpc::new_client;
 use fs_hub_proto::hub_capnp::session;
 use fs_hub_proto::{
-    read_activities, read_activity_id, write_activities, write_activity_id, write_push_outcome,
+    read_activity_id, read_pushed_list, write_activity_id, write_pulled_list, write_push_outcome,
 };
 
 use super::errors::rpc_err;
-use super::subscription::{SubscriptionImpl, spawn_notifier};
+use super::subscription::subscribe;
 use crate::{HubCore, LiveGuard};
 
 const DEFAULT_PULL_LIMIT: usize = 200;
@@ -41,7 +40,7 @@ impl session::Server for SessionImpl {
         params: session::PushParams,
         mut results: session::PushResults,
     ) -> Result<(), capnp::Error> {
-        let activities = read_activities(params.get()?.get_activities()?).map_err(rpc_err)?;
+        let activities = read_pushed_list(params.get()?.get_activities()?).map_err(rpc_err)?;
         let outcome = self
             .core
             .push(&self.program, activities)
@@ -56,11 +55,12 @@ impl session::Server for SessionImpl {
         params: session::PullParams,
         mut results: session::PullResults,
     ) -> Result<(), capnp::Error> {
-        let (since, limit) = {
+        let (since, limit, envelope_only) = {
             let p = params.get()?;
             (
                 read_activity_id(p.get_since()?).map_err(rpc_err)?,
                 p.get_limit(),
+                p.get_envelope_only(),
             )
         };
         let limit = if limit == 0 {
@@ -70,13 +70,17 @@ impl session::Server for SessionImpl {
         };
         let batch = self
             .core
-            .pull(&self.program, since, limit)
+            .pull(&self.program, since, limit, envelope_only)
             .await
             .map_err(rpc_err)?;
         let mut r = results.get();
         let count = u32::try_from(batch.activities.len()).map_err(rpc_err)?;
-        write_activities(r.reborrow().init_activities(count), &batch.activities)
-            .map_err(rpc_err)?;
+        write_pulled_list(
+            r.reborrow().init_activities(count),
+            &batch.activities,
+            &batch.notes,
+        )
+        .map_err(rpc_err)?;
         write_activity_id(r.reborrow().init_last(), batch.last);
         r.set_more(batch.more);
         Ok(())
@@ -105,10 +109,8 @@ impl session::Server for SessionImpl {
             .await
             .map_err(rpc_err)?
             .reads;
-        let task = spawn_notifier(self.core.clone(), self.program.clone(), reads, listener);
-        results
-            .get()
-            .set_subscription(new_client(SubscriptionImpl::new(task)));
+        let subscription = subscribe(self.core.clone(), self.program.clone(), reads, listener);
+        results.get().set_subscription(subscription);
         Ok(())
     }
 }

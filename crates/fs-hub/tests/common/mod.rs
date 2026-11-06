@@ -1,12 +1,14 @@
 //! Shared test environment: a hub in a temp dir, sessions and stores for two program cores.
 #![allow(dead_code)] // every test file uses a different subset of these helpers
 
+pub mod raw;
+
 use std::sync::Arc;
 
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubSession, HubStatus, Manifest, connect_at};
 use fs_people_core::Card;
-use fs_store::{OpenOptions, TursoStore};
+use fs_store::{Envelope, OpenOptions, StoredObject, TursoStore};
 
 pub struct Env {
     pub dir: tempfile::TempDir,
@@ -69,6 +71,18 @@ pub async fn session(env: &Env, m: Manifest) -> HubSession {
         HubStatus::Connected(s) => s,
         HubStatus::Absent => panic!("hub should be there"),
     }
+}
+
+pub fn notes_manifest(name: &str) -> Manifest {
+    Manifest::new(name, "0.1.0")
+        .read(&["Note"])
+        .write(&["Note"])
+}
+
+/// A `Note` whose JSON content holds `bytes` of text.
+pub fn note(name: &str, bytes: usize) -> StoredObject {
+    let content = serde_json::json!({ "text": "x".repeat(bytes) });
+    StoredObject::new(Envelope::new("Note", name), "application/json", content)
 }
 
 pub fn person(name: &str, email: &str) -> Card {

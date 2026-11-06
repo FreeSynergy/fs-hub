@@ -29,8 +29,8 @@ pub mod server;
 
 pub use core::{
     ActivitySink, ActivitySource, CursorRepository, HubCore, LiveGuard, LogSource, ObjectCollector,
-    Presence, ProgramLock, ProgramRegistry, ProgramState, ProposalEngine, SharedIdentity,
-    StoreCursors, StoredRegistry, Visibility,
+    OriginalTimes, Presence, ProgramLock, ProgramRegistry, ProgramState, ProposalEngine,
+    SharedIdentity, StoreCursors, StoreOriginals, StoredRegistry, Visibility,
 };
 pub use daemon::{Config, Daemon, run_blocking};
 pub use error::{Error, Result};

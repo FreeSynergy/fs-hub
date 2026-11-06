@@ -20,13 +20,18 @@ pub(super) async fn apply(store: &dyn Store, a: &Activity) -> Result<Vec<Activit
             .await?;
         return Ok(vec![act.id]);
     }
+    if a.payload.is_null() {
+        return Err(Error::Protocol(
+            "the hub held back the content: too large for a message".into(),
+        ));
+    }
     let cs = a.change_set().map_err(Error::Store)?;
     match cs.after {
         Some(obj) => {
-            if let Some(have) = store.get(obj.envelope.id).await? {
-                if same_content(&have, &obj) {
-                    return Ok(vec![]);
-                }
+            if let Some(have) = store.get(obj.envelope.id).await?
+                && same_content(&have, &obj)
+            {
+                return Ok(vec![]);
             }
             Ok(vec![store.put(obj, &actor).await?.id])
         }

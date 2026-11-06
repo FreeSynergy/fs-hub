@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use fs_hub_proto::{Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome};
+use fs_hub_proto::{Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, Pushed};
 use fs_store::traits::{ActivityLog, ChangeFeed, ObjectQuery, ObjectRepository};
 use fs_store::{Activity, ActivityId, Store, TursoStore};
 use tokio::sync::broadcast;
@@ -16,6 +16,7 @@ use super::activity::{ActivitySink, ActivitySource};
 use super::collector::ObjectCollector;
 use super::cursors::StoreCursors;
 use super::log_source::LogSource;
+use super::originals::{OriginalTimes, StoreOriginals};
 use super::presence::LiveGuard;
 use super::proposals::{ProposalEngine, SharedIdentity};
 use super::registry::{ProgramRegistry, StoredRegistry};
@@ -42,6 +43,7 @@ impl HubCore {
         std::fs::create_dir_all(dir)?;
         let objects = Arc::new(TursoStore::open(dir.join("objects.db")).await?);
         let state = Arc::new(TursoStore::open(dir.join("state.db")).await?);
+        let originals: Arc<dyn OriginalTimes> = Arc::new(StoreOriginals::new(state.clone()));
         let registry: Arc<dyn ProgramRegistry> =
             Arc::new(StoredRegistry::open(Arc::new(StoreCursors::new(state).await?)).await?);
         let repo: Arc<dyn ObjectRepository> = objects.clone();
@@ -52,12 +54,14 @@ impl HubCore {
                 registry.clone(),
                 repo.clone(),
                 log.clone(),
+                originals.clone(),
             )),
             source: Arc::new(LogSource::new(
                 registry.clone(),
                 log,
                 feed,
                 Visibility::new(repo),
+                originals,
             )),
             registry,
             engine,
@@ -86,7 +90,7 @@ impl HubCore {
     }
 
     /// Apply a program's activities (see [`ActivitySink::push`]).
-    pub async fn push(&self, program: &str, activities: Vec<Activity>) -> Result<PushOutcome> {
+    pub async fn push(&self, program: &str, activities: Vec<Pushed>) -> Result<PushOutcome> {
         self.sink.push(program, activities).await
     }
 
@@ -96,8 +100,9 @@ impl HubCore {
         program: &str,
         since: Option<ActivityId>,
         limit: usize,
+        envelope_only: bool,
     ) -> Result<PullBatch> {
-        self.source.pull(program, since, limit).await
+        self.source.pull(program, since, limit, envelope_only).await
     }
 
     /// Acknowledge delivery (see [`ActivitySource::ack`]).

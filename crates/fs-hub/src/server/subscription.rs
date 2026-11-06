@@ -1,82 +1,103 @@
 //! Live change notices to a subscribed program.
 //!
-//! Pattern: Observer — a local task listens to the core's change feed, filters with the
-//! visibility rule and calls the program's `ChangeListener`; dropping the `Subscription`
-//! capability aborts the task.
+//! Pattern: Observer — a local task listens to the core's change feed, filters with the visibility
+//! rule and hands notices to `rpc::forward`, which delivers them, ends a consumer that falls too far
+//! behind or fails, and always says so through `ChangeListener.ended`. Dropping the `Subscription`
+//! capability stops both, silently, as the consumer asked for it.
+//!
+//! When the feed lags (`RecvError::Lagged`) changes are gone. The contract has only `ended` to say
+//! that, so the feed ends; the program subscribes again and catches up with `pull`.
 
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use fs_hub_proto::common_capnp::{change_listener, subscription};
-use fs_hub_proto::{write_envelope, write_uuid};
+use fs_interfaces::rpc::{ChangeSender, Notice, change_channel, forward};
 use fs_store::{Activity, ActivityKind};
-use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::broadcast::{self, error::RecvError};
+use tokio::task::JoinHandle;
 
-use super::errors::rpc_err;
 use crate::HubCore;
 
-/// Dropping the capability ends the subscription.
-pub(super) struct SubscriptionImpl {
-    task: RefCell<Option<tokio::task::JoinHandle<()>>>,
+/// What reaches the forwarder.
+enum Event {
+    /// Tell this.
+    Tell(Box<Notice>),
+    /// Changes cannot be told anymore, for this reason.
+    End(String),
 }
 
-impl SubscriptionImpl {
-    pub fn new(task: tokio::task::JoinHandle<()>) -> Self {
-        Self {
-            task: RefCell::new(Some(task)),
-        }
-    }
-}
+/// Stops the feed task when the forwarding ends.
+struct StopOnDrop(JoinHandle<()>);
 
-impl subscription::Server for SubscriptionImpl {}
-
-impl Drop for SubscriptionImpl {
+impl Drop for StopOnDrop {
     fn drop(&mut self) {
-        if let Some(t) = self.task.borrow_mut().take() {
-            t.abort();
-        }
+        self.0.abort();
     }
 }
 
-/// Forward visible activities to `listener` until it goes away.
-pub(super) fn spawn_notifier(
+/// Start the feed for `listener`. The feed begins now, not when the first change comes.
+pub(super) fn subscribe(
     core: Arc<HubCore>,
     program: String,
     reads: Vec<String>,
     listener: change_listener::Client,
-) -> tokio::task::JoinHandle<()> {
-    let mut rx = core.changes();
-    tokio::task::spawn_local(async move {
-        loop {
-            match rx.recv().await {
-                Ok(a) => {
-                    if !core.visible_to(&program, &reads, &a).await {
-                        continue;
-                    }
-                    if notify(&listener, &a).await.is_err() {
-                        break; // listener gone
-                    }
-                }
-                Err(RecvError::Lagged(_)) => {} // the program catches up with `pull`
-                Err(RecvError::Closed) => break,
-            }
+) -> subscription::Client {
+    let (sender, receiver) = change_channel();
+    let changes = core.changes();
+    let task = tokio::task::spawn_local(watch(core, program, reads, changes, sender));
+    forward(receiver, StopOnDrop(task), listener, |event| async move {
+        match event {
+            Event::Tell(notice) => Ok(Some(*notice)),
+            Event::End(why) => Err(why),
         }
     })
 }
 
-async fn notify(listener: &change_listener::Client, a: &Activity) -> Result<(), capnp::Error> {
-    let cs = a.change_set().map_err(rpc_err)?;
-    let mut req = listener.change_request();
-    {
-        let change = req.get().init_change();
-        match (a.kind, cs.after) {
-            (ActivityKind::Create, Some(o)) => write_envelope(change.init_created(), &o.envelope),
-            (_, Some(o)) => write_envelope(change.init_updated(), &o.envelope),
-            (_, None) => {
-                let mut b = change;
-                write_uuid(b.reborrow().init_deleted(), Some(a.object.as_uuid()));
+/// Pass on what `program` may see. Returning drops the sender, which ends the feed as well.
+async fn watch(
+    core: Arc<HubCore>,
+    program: String,
+    reads: Vec<String>,
+    mut changes: broadcast::Receiver<Activity>,
+    sender: ChangeSender<Event>,
+) {
+    loop {
+        match changes.recv().await {
+            Ok(a) => {
+                if !core.visible_to(&program, &reads, &a).await {
+                    continue;
+                }
+                match notice_of(&a) {
+                    Ok(Some(notice)) => sender.send(Event::Tell(Box::new(notice))),
+                    Ok(None) => {}
+                    Err(why) => {
+                        sender.send(Event::End(why));
+                        return;
+                    }
+                }
             }
+            Err(RecvError::Lagged(missed)) => {
+                sender.send(Event::End(format!(
+                    "{missed} changes were missed; subscribe again and catch up with pull"
+                )));
+                return;
+            }
+            Err(RecvError::Closed) => return,
         }
     }
-    req.send().await
+}
+
+/// The notice of an activity. A log-only activity changes no object: nothing to tell.
+fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
+    if !a.kind.changes_state() {
+        return Ok(None);
+    }
+    let cs = a
+        .change_set()
+        .map_err(|e| format!("{} {}: {e}", a.kind.as_str(), a.id))?;
+    Ok(Some(match (a.kind, cs.after) {
+        (ActivityKind::Create, Some(o)) => Notice::Created(o.envelope),
+        (_, Some(o)) => Notice::Updated(o.envelope),
+        (_, None) => Notice::Deleted(a.object),
+    }))
 }

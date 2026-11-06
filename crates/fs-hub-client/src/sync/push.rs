@@ -1,14 +1,15 @@
 //! Push step: unsynced local log -> hub.
 //!
 //! Pattern: Iterator-style batching — takes the log in batches, marks each synced once the hub
-//! acknowledged it.
+//! acknowledged it; `HubSession::push` cuts a batch to what fits a message.
 
 use fs_store::{ActivityFilter, Store};
 
 use super::report::SyncReport;
 use crate::{Error, HubSession, Result};
 
-const PUSH_BATCH: usize = 100;
+/// Read from the log at once. Small, because every entry may hold two large images.
+const PUSH_BATCH: usize = 32;
 
 pub(super) async fn push_all(
     hub: &HubSession,
