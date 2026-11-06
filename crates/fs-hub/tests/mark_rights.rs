@@ -1,4 +1,5 @@
 //! End-to-end: who may do what to a marked object. A mark takes the object off the hub only (provisional).
+//! The owner's side: `mark_owner.rs`.
 
 mod common;
 
@@ -156,13 +157,4 @@ async fn a_mark_from_another_program_never_deletes_the_owners_object() {
     assert_eq!(page.activities[0].kind, ActivityKind::Delete);
     early.sync_once(early_store.as_ref()).await.unwrap();
     assert!(early_store.get(id).await.unwrap().is_none(), "a copy goes");
-
-    // While that mark holds, the owner's change stays with the owner, and it is told so.
-    store
-        .put(with_text(kept, "owner's edit"), "ada")
-        .await
-        .unwrap();
-    let up = owner.sync_once(store.as_ref()).await.unwrap();
-    assert_eq!((up.accepted, up.problems.len()), (0, 1), "{up:?}");
-    assert!(env.hub().core().store().get(id).await.unwrap().is_none());
 }

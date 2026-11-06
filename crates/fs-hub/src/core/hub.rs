@@ -16,7 +16,8 @@ use super::activity::{ActivitySink, ActivitySource};
 use super::collector::ObjectCollector;
 use super::cursors::StoreCursors;
 use super::log_source::LogSource;
-use super::marked::{MarkedRemovals, StoreMarked};
+use super::marked::MarkedRemovals;
+use super::marks_open::open_marks;
 use super::originals::{OriginalTimes, StoreOriginals};
 use super::presence::LiveGuard;
 use super::proposals::{ProposalEngine, SharedIdentity};
@@ -30,6 +31,7 @@ pub struct HubCore {
     registry: Arc<dyn ProgramRegistry>,
     sink: Arc<dyn ActivitySink>,
     source: Arc<dyn ActivitySource>,
+    marked: Arc<dyn MarkedRemovals>,
     engine: Arc<dyn ProposalEngine>,
 }
 
@@ -45,30 +47,32 @@ impl HubCore {
         let objects = Arc::new(TursoStore::open(dir.join("objects.db")).await?);
         let state = Arc::new(TursoStore::open(dir.join("state.db")).await?);
         let times = Arc::new(TursoStore::open(dir.join("times.db")).await?);
-        let marks = Arc::new(TursoStore::open(dir.join("marks.db")).await?);
         let originals: Arc<dyn OriginalTimes> = Arc::new(StoreOriginals::new(times).await?);
-        let marked: Arc<dyn MarkedRemovals> = Arc::new(StoreMarked::new(marks).await?);
+        let marked: Arc<dyn MarkedRemovals> = open_marks(dir, &state, objects.as_ref()).await?;
         let registry: Arc<dyn ProgramRegistry> =
             Arc::new(StoredRegistry::open(Arc::new(StoreCursors::new(state).await?)).await?);
         let repo: Arc<dyn ObjectRepository> = objects.clone();
         let log: Arc<dyn ActivityLog> = objects.clone();
         let feed: Arc<dyn ChangeFeed> = objects.clone();
+        let collector = Arc::new(ObjectCollector::new(
+            registry.clone(),
+            repo.clone(),
+            log.clone(),
+            originals.clone(),
+            marked.clone(),
+        ));
+        collector.finish_removals().await?;
         Ok(Arc::new(Self {
-            sink: Arc::new(ObjectCollector::new(
-                registry.clone(),
-                repo.clone(),
-                log.clone(),
-                originals.clone(),
-                marked.clone(),
-            )),
+            sink: collector,
             source: Arc::new(LogSource::new(
                 registry.clone(),
                 log,
                 feed,
                 Visibility::new(repo),
                 originals,
-                marked,
+                marked.clone(),
             )),
+            marked,
             registry,
             engine,
             objects,
@@ -126,6 +130,16 @@ impl HubCore {
         self.source.changes()
     }
 
+    /// The list of marked objects.
+    pub fn marked(&self) -> Arc<dyn MarkedRemovals> {
+        self.marked.clone()
+    }
+
+    async fn mark_holds(&self, object: ObjectId) -> Result<bool> {
+        let removal = self.marked.find(object).await?;
+        Ok(removal.is_some_and(|r| r.holds))
+    }
+
     /// Is this entry about `object` from before a mark?
     pub async fn withdrawn(&self, object: ObjectId, entry: ActivityId) -> Result<bool> {
         self.source.withdrawn(object, entry).await
@@ -148,7 +162,12 @@ impl HubCore {
             let readable = |o: Option<StoredObject>| {
                 o.is_some_and(|o| reads.contains(&o.envelope.object_type))
             };
-            if readable(a) && readable(b) {
+            // Also if `marks.db` is newer than `objects.db`: a mark that holds names nobody.
+            if readable(a)
+                && readable(b)
+                && !self.mark_holds(proposal.a).await?
+                && !self.mark_holds(proposal.b).await?
+            {
                 visible.push(proposal);
             }
         }

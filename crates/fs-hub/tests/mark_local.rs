@@ -99,3 +99,44 @@ async fn an_object_at_the_id_of_a_log_entry_stops_nothing() {
         "its time is its own"
     );
 }
+
+/// The owner may lift another program's mark, by its own mark and taking that off. Nobody else may.
+#[tokio::test]
+async fn the_owner_lifts_a_mark_and_a_third_program_cannot() {
+    let env = Env::start();
+    let (store, other_store) = (env.store("owner").await, env.store("other").await);
+    let third_store = env.store("third").await;
+    let owner = session(&env, notes_manifest("owner")).await;
+    let other = session(&env, notes_manifest("other")).await;
+    let third = session(&env, notes_manifest("third")).await;
+    let o = note("n", 8);
+    let id = o.envelope.id;
+    store.put(o.clone(), "ada").await.unwrap();
+    owner.sync_once(store.as_ref()).await.unwrap();
+    third.sync_once(third_store.as_ref()).await.unwrap();
+    other.sync_once(other_store.as_ref()).await.unwrap();
+    let copy = other_store.get(id).await.unwrap().unwrap();
+    other_store.put(marked(copy), "bob").await.unwrap();
+    other.sync_once(other_store.as_ref()).await.unwrap();
+    let hub = env.hub().core().store();
+
+    // A third program takes a mark off its own copy: refused, the mark holds.
+    let copy = third_store.get(id).await.unwrap().unwrap();
+    third_store.put(marked(copy.clone()), "c").await.unwrap();
+    third_store.put(copy, "c").await.unwrap();
+    let up = third.sync_once(third_store.as_ref()).await.unwrap();
+    assert_eq!((up.accepted, up.problems.len()), (0, 1), "{up:?}");
+    assert_eq!(up.problems[0].status, 409);
+    assert!(hub.get(id).await.unwrap().is_none());
+
+    // The owner does: its object is back, at once.
+    store.put(marked(o.clone()), "ada").await.unwrap();
+    owner.sync_once(store.as_ref()).await.unwrap();
+    store.put(with_text(o, "open again"), "ada").await.unwrap();
+    let up = owner.sync_once(store.as_ref()).await.unwrap();
+    assert_eq!((up.accepted, up.problems.len()), (1, 0), "{up:?}");
+    assert_eq!(
+        hub.get(id).await.unwrap().unwrap().content["text"],
+        "open again"
+    );
+}

@@ -104,3 +104,33 @@ async fn proposals_follow_the_callers_reads() {
         "reads other types"
     );
 }
+
+/// `marks.db` can be newer than `objects.db`: a mark that holds names nobody, whatever else is here.
+#[tokio::test]
+async fn a_mark_that_holds_names_nobody() {
+    let env = Env::start();
+    let (a_store, b_store) = (env.store("a").await, env.store("b").await);
+    let a = session(&env, contacts_manifest("a")).await;
+    let b = session(&env, contacts_manifest("b")).await;
+    let card = PeopleRepo::new(a_store.clone(), "a")
+        .create(person("Grace", "grace@example.org"))
+        .await
+        .unwrap();
+    PeopleRepo::new(b_store.clone(), "b")
+        .create(person("Grace H", "grace@example.org"))
+        .await
+        .unwrap();
+    a.sync_once(a_store.as_ref()).await.unwrap();
+    b.sync_once(b_store.as_ref()).await.unwrap();
+    assert_eq!(a.proposals().await.unwrap().len(), 1);
+
+    let removal = fs_hub::Removal {
+        reach: fs_hub::Reach::Open,
+        by: "a".into(),
+        origin: "a".into(),
+        holds: true,
+    };
+    let marks = env.hub().core().marked();
+    marks.record(card.envelope.id, &removal).await.unwrap();
+    assert_eq!(a.proposals().await.unwrap().len(), 0);
+}

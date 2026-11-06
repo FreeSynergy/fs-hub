@@ -27,6 +27,7 @@ mod daemon;
 mod error;
 pub mod server;
 
+pub use core::HeldWrites;
 pub use core::{
     ActivitySink, ActivitySource, CursorRepository, HubCore, LiveGuard, LogSource, MarkedRemovals,
     ObjectCollector, OriginalTimes, Presence, ProgramLock, ProgramRegistry, ProgramState,

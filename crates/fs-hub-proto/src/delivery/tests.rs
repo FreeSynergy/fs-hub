@@ -63,3 +63,18 @@ fn what_cannot_be_read_does_not_go_out() {
 fn a_plain_delete_has_no_marker() {
     assert_eq!(plain_delete_envelope(ObjectId::new()).sensitive.len(), 0);
 }
+
+#[test]
+fn the_keys_of_a_card_go_only_with_a_card() {
+    let with_keys = |object_type: &str| {
+        let mut o = StoredObject::new(Envelope::new(object_type, "n"), "text/plain", Value::Null);
+        for key in ["email", "phone", "nickname", "org", "subject"] {
+            o = o.with_index(key, "x");
+        }
+        blank_object(&mut o);
+        o.index.into_keys().collect::<Vec<_>>()
+    };
+    assert_eq!(with_keys("Profile"), ["email", "nickname", "org", "phone"]);
+    assert_eq!(with_keys("Relationship"), ["subject"]);
+    assert_eq!(with_keys("Event").len(), 0);
+}

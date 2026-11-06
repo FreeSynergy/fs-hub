@@ -38,6 +38,9 @@ impl MarkedRemovals for FaultyMarks {
     async fn find(&self, object: ObjectId) -> fs_hub::Result<Option<Removal>> {
         self.0.find(object).await
     }
+    async fn all(&self) -> fs_hub::Result<Vec<(ObjectId, Removal)>> {
+        self.0.all().await
+    }
 }
 
 struct FaultyTimes(Arc<dyn OriginalTimes>, Arc<Faults>);

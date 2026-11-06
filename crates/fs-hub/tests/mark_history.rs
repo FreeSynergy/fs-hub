@@ -109,3 +109,33 @@ async fn a_mark_reaches_the_log_when_the_hub_holds_no_copy() {
     assert!(!format!("{:?}{:?}", page.activities, page.notes).contains(OLD));
     assert!(!format!("{:?}{:?}", page.activities, page.notes).contains("real name"));
 }
+
+/// Marked and deleted before the first sync: nothing says it was sensitive any more but the log.
+#[tokio::test]
+async fn marked_and_deleted_before_the_first_sync_stays_home() {
+    let env = Env::start();
+    let store = env.store("owner").await;
+    let owner = session(&env, notes_manifest("owner")).await;
+    let o = with_text(note("real name", 8), OLD);
+    let id = o.envelope.id;
+    store.put(o.clone(), "ada").await.unwrap();
+    store.put(marked(o), "ada").await.unwrap();
+    store.delete(id, "ada").await.unwrap();
+
+    let up = owner.sync_once(store.as_ref()).await.unwrap();
+    assert_eq!(up.accepted, 0, "{up:?}");
+    let hub_log = env.hub().core().store();
+    let log = hub_log
+        .activities(&ActivityFilter::default())
+        .await
+        .unwrap();
+    assert_eq!(log.len(), 0, "{log:?}");
+
+    // And an object that was never marked still goes, delete included.
+    let plain = note("plain", 8);
+    let plain_id = plain.envelope.id;
+    store.put(plain, "ada").await.unwrap();
+    store.delete(plain_id, "ada").await.unwrap();
+    let up = owner.sync_once(store.as_ref()).await.unwrap();
+    assert_eq!(up.accepted, 2, "{up:?}");
+}

@@ -19,7 +19,7 @@ use super::registry::ProgramRegistry;
 use super::state::now_ms;
 use crate::Result;
 
-const SAVE_EVERY_MS: i64 = 1000;
+const SETTLE_EVERY_MS: i64 = 1000;
 const MARKED_PROBLEM_TYPE: &str = "https://freesynergy.net/problems/marked-sensitive";
 
 /// [`ActivitySink`] that stores pushed objects in the hub's store.
@@ -61,11 +61,16 @@ impl ActivitySink for ObjectCollector {
             original_at,
         } in activities
         {
-            if st.last_accepted.is_some_and(|l| a.id <= l) {
+            if !st.is_held(a.object, a.id) && st.last_accepted.is_some_and(|l| a.id <= l) {
                 out.skipped += 1;
                 continue;
             }
+            let mut held = false;
             match self.apply_one(&st.manifest, &mut a).await {
+                Ok(Applied::Held) => {
+                    out.withheld += 1;
+                    held = true;
+                }
                 Ok(Applied::Done(logged)) => {
                     out.accepted += 1;
                     if let Some(at) = original_at {
@@ -105,16 +110,21 @@ impl ActivitySink for ObjectCollector {
                     ));
                 }
             }
-            st.last_accepted = Some(a.id);
+            if held {
+                st.hold(a.object, a.id);
+            } else {
+                st.release(a.object, a.id);
+            }
+            st.last_accepted = st.last_accepted.max(Some(a.id));
         }
         let now = now_ms();
         st.last_seen_ms = now;
-        out.last_accepted = st.last_accepted;
-        // Not on each call: a crash only costs repeated work, applying is idempotent.
-        if now - st.saved_ms >= SAVE_EVERY_MS {
+        out.last_accepted = st.acknowledged();
+        // Before the answer: a program that is told an entry is taken never sends it again.
+        st.save().await?;
+        if now - st.settled_ms >= SETTLE_EVERY_MS {
             self.originals.settle().await?;
-            st.saved_ms = now;
-            st.save().await?;
+            st.settled_ms = now;
         }
         Ok(out)
     }

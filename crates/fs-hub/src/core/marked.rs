@@ -7,8 +7,8 @@
 //!
 //! An entry within the reach of a removal goes to nobody, except the delete, which readers get as a
 //! plain delete. The program that first wrote the object does not get that either: a mark takes the
-//! object off the hub, it never deletes another program's object. While the mark holds, only the
-//! program that set it can bring the object back.
+//! object off the hub, it never deletes another program's object. The owner and the program that set
+//! the mark can lift it, nobody else, and the owner goes on writing while it holds.
 //!
 //! Pattern: Repository — `MarkedRemovals` is the interface; `StoreMarked` keeps one small object per
 //! removed object in a store of its own: a program chooses object ids, and this way they meet nothing
@@ -17,8 +17,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fs_store::traits::{HistoryRetention, ObjectRepository};
-use fs_store::{ActivityId, Envelope, ObjectId, Retention, StoredObject, TursoStore};
+use fs_store::traits::{HistoryRetention, ObjectQuery, ObjectRepository};
+use fs_store::{ActivityId, Envelope, ObjectId, Query, Retention, StoredObject, TursoStore};
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -66,6 +66,8 @@ pub trait MarkedRemovals: Send + Sync {
     async fn record(&self, object: ObjectId, removal: &Removal) -> Result<()>;
     /// The removal of `object`, if there was one.
     async fn find(&self, object: ObjectId) -> Result<Option<Removal>>;
+    /// Everything on the list.
+    async fn all(&self) -> Result<Vec<(ObjectId, Removal)>>;
 }
 
 /// [`MarkedRemovals`] over a `TursoStore`.
@@ -100,5 +102,14 @@ impl MarkedRemovals for StoreMarked {
             return Ok(None);
         };
         Ok(Some(serde_json::from_value(entry.content)?))
+    }
+
+    async fn all(&self) -> Result<Vec<(ObjectId, Removal)>> {
+        self.marks
+            .query(&Query::new().of_type(MARKED_TYPE))
+            .await?
+            .into_iter()
+            .map(|o| Ok((o.envelope.id, serde_json::from_value(o.content)?)))
+            .collect()
     }
 }

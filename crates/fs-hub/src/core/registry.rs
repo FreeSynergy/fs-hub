@@ -128,7 +128,8 @@ impl ProgramRegistry for StoredRegistry {
                 last_accepted: None,
                 pull_cursor: None,
                 last_seen_ms: now_ms(),
-                saved_ms: 0,
+                held: Vec::new(),
+                settled_ms: 0,
             };
             self.cursors.save(&st).await?;
             self.programs

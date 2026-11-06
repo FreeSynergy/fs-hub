@@ -22,15 +22,22 @@ pub const SENSITIVE_MARKER: &str = "sensitive";
 const STUB_TYPE: &str = "Object";
 const STUB_NAME: &str = "withheld";
 
-/// Index keys a reader gets: what it needs to find and handle an object. Anything else does not go, so
-/// a new key naming people stays home until somebody decides otherwise (`person`, `member`, `holder`,
-/// `invitee`, `subject`, `participant_email`, ...). `email` and `phone` stay: on a profile they say what
-/// its content says, which is the object itself.
+/// Index keys only a card has for a reader: they say what its content says, which is the object itself.
+/// So they go to programs allowed to read the card type anyway, never of a marked card, as that is not
+/// delivered at all (ADR 0029 point 1), and on no other type.
+const PROFILE_INDEX_KEYS: &[&str] = &["email", "nickname", "org", "phone"];
+
+/// On a same-person link `subject` and `object` are card ids, not people's IRIs. Other programs use
+/// `subject` for other things, so only here.
+const RELATIONSHIP_INDEX_KEYS: &[&str] = &["subject"];
+
+/// Index keys a reader gets of any object: what it needs to find and handle it. Anything else does not
+/// go, so a new key naming people stays home until somebody decides otherwise (`person`, `member`,
+/// `holder`, `invitee`, `participant_email`, ...).
 pub const DELIVERED_INDEX_KEYS: &[&str] = &[
     "activity",
     "backend",
     "directory",
-    "email",
     "folder",
     "group",
     "key",
@@ -43,7 +50,6 @@ pub const DELIVERED_INDEX_KEYS: &[&str] = &[
     "object",
     "parent",
     "path",
-    "phone",
     "progress",
     "relationship",
     "removed",
@@ -76,8 +82,10 @@ fn held_back(e: &mut Envelope) -> (&mut Option<String>, [&mut Vec<String>; 5]) {
     )
 }
 
-fn is_delivered(index_key: &str) -> bool {
+fn is_delivered(index_key: &str, object_type: &str) -> bool {
     DELIVERED_INDEX_KEYS.contains(&index_key)
+        || (object_type == "Profile" && PROFILE_INDEX_KEYS.contains(&index_key))
+        || (object_type == "Relationship" && RELATIONSHIP_INDEX_KEYS.contains(&index_key))
 }
 
 /// Blank what a reader does not get of an envelope. Everything leaving the hub goes through this.
@@ -93,7 +101,8 @@ pub fn blank_for_delivery(e: &mut Envelope) {
 pub fn blank_object(o: &mut StoredObject) {
     blank_for_delivery(&mut o.envelope);
     o.original = None;
-    o.index.retain(|key, _| is_delivered(key));
+    let object_type = o.envelope.object_type.as_str();
+    o.index.retain(|key, _| is_delivered(key, object_type));
 }
 
 /// `into` came from a reader, or from the hub to a reader: what it has blank takes the value in `from`.
@@ -111,7 +120,7 @@ pub fn keep_held_back(from: &StoredObject, into: &mut StoredObject) {
         }
     }
     for (key, values) in &from.index {
-        if !is_delivered(key) {
+        if !is_delivered(key, &into.envelope.object_type) {
             into.index
                 .entry(key.clone())
                 .or_insert_with(|| values.clone());

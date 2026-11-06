@@ -19,9 +19,9 @@ use crate::Result;
 
 /// What the log knows of an object.
 #[derive(Default)]
-struct History {
-    entries: Vec<ActivityId>,
-    object_type: Option<String>,
+pub(super) struct History {
+    pub entries: Vec<ActivityId>,
+    pub object_type: Option<String>,
 }
 
 impl ObjectCollector {
@@ -37,19 +37,49 @@ impl ObjectCollector {
         Ok(Applied::Withheld)
     }
 
-    /// The hub holds a copy: list, delete, forget, close.
+    /// The hub holds a copy: list, delete, forget, close. The origin goes on the list now: the log it
+    /// comes from will be purged.
     pub(super) async fn remove_marked(&self, program: &str, id: ObjectId) -> Result<()> {
-        let mut removal = Removal {
+        let removal = Removal {
             reach: Reach::Open,
             by: program.to_string(),
             origin: origin_of(self.log.as_ref(), id).await?,
             holds: true,
         };
+        self.take_off(id, removal).await
+    }
+
+    async fn take_off(&self, id: ObjectId, mut removal: Removal) -> Result<()> {
+        removal.reach = Reach::Open;
         self.marked.record(id, &removal).await?;
-        let logged = self.objects.delete(id, program).await?;
+        let logged = self.objects.delete(id, &removal.by).await?;
         self.forget_times(id).await?;
         removal.reach = Reach::UpTo(logged.id);
         self.marked.record(id, &removal).await
+    }
+
+    /// At start: a mark that holds with a copy here. `marks.db` can be newer than `objects.db`, after a
+    /// restored backup, or a crash left the removal open.
+    pub async fn finish_removals(&self) -> Result<()> {
+        for (id, removal) in self.marked.all().await? {
+            if !removal.holds {
+                continue;
+            }
+            if self.objects.get(id).await?.is_some() {
+                self.take_off(id, removal).await?;
+            } else if removal.reach == Reach::Open {
+                self.forget_times(id).await?;
+                let last = self.history_of(id).await?.entries.pop();
+                if let Some(last) = last {
+                    let closed = Removal {
+                        reach: Reach::UpTo(last),
+                        ..removal
+                    };
+                    self.marked.record(id, &closed).await?;
+                }
+            }
+        }
+        Ok(())
     }
 
     /// The hub holds no copy, but its log may have old content; or a crash left the removal open.
@@ -98,7 +128,7 @@ impl ObjectCollector {
     }
 
     /// The log entries about `object`, reading one at a time: each may be large.
-    async fn history_of(&self, object: ObjectId) -> Result<History> {
+    pub(super) async fn history_of(&self, object: ObjectId) -> Result<History> {
         let mut history = History::default();
         loop {
             let filter = ActivityFilter {

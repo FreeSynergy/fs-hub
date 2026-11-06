@@ -3,12 +3,8 @@
 
 mod common;
 
-use std::path::Path;
-use std::process::{Child, Command};
-use std::time::Duration;
-
-use common::{note, notes_manifest};
-use fs_hub_client::{HubSession, HubStatus, connect_at};
+use common::binary::{Hub, connect, kill, start};
+use common::note;
 use fs_store::TursoStore;
 use fs_store::traits::ObjectRepository;
 
@@ -18,29 +14,7 @@ const NOTE_BYTES: usize = 14 * MIB;
 /// Two notes make a page of 28 MiB. Reading all 32 entries each time came to about 835 MiB.
 const MOST_PEAK_BYTES: u64 = 400 << 20;
 
-fn start(socket: &Path, data: &Path) -> Child {
-    Command::new(env!("CARGO_BIN_EXE_fs-hub"))
-        .arg("--socket")
-        .arg(socket)
-        .arg("--data")
-        .arg(data)
-        .spawn()
-        .unwrap()
-}
-
-async fn connect(socket: &Path, name: &str) -> HubSession {
-    for _ in 0..200 {
-        if socket.exists()
-            && let HubStatus::Connected(s) = connect_at(socket, notes_manifest(name)).await.unwrap()
-        {
-            return s;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!("the hub did not come up");
-}
-
-fn peak_bytes(hub: &Child) -> u64 {
+fn peak_bytes(hub: &Hub) -> u64 {
     let status = std::fs::read_to_string(format!("/proc/{}/status", hub.id())).unwrap();
     let line = status.lines().find(|l| l.starts_with("VmHWM:")).unwrap();
     let kib: u64 = line.split_whitespace().nth(1).unwrap().parse().unwrap();
@@ -54,7 +28,7 @@ async fn a_page_of_large_entries_does_not_read_the_whole_scan() {
     let data = dir.path().join("hub-data");
     std::fs::create_dir_all(&data).unwrap();
 
-    let mut hub = start(&socket, &data);
+    let hub = start(&socket, &data);
     let writer = connect(&socket, "wiki").await;
     let store = TursoStore::open(dir.path().join("wiki.db")).await.unwrap();
     for i in 0..NOTES {
@@ -68,17 +42,15 @@ async fn a_page_of_large_entries_does_not_read_the_whole_scan() {
         NOTES
     );
     drop(writer);
-    hub.kill().unwrap();
-    hub.wait().unwrap();
+    kill(hub);
 
-    let mut hub = start(&socket, &data);
+    let hub = start(&socket, &data);
     let reader = connect(&socket, "reader").await;
     let page = reader.pull(None, 0).await.unwrap();
     assert_eq!(page.activities.len(), 2);
     assert!(page.more);
     let peak = peak_bytes(&hub);
     eprintln!("MEASURE hub peak: {} MiB", peak >> 20);
-    hub.kill().unwrap();
-    hub.wait().unwrap();
+    kill(hub);
     assert!(peak < MOST_PEAK_BYTES, "{} MiB", peak >> 20);
 }

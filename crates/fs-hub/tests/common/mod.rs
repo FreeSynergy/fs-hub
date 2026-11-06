@@ -1,6 +1,7 @@
 //! Shared test environment: a hub in a temp dir, sessions and stores for two program cores.
 #![allow(dead_code)] // every test file uses a different subset of these helpers
 
+pub mod binary;
 pub mod parts;
 pub mod raw;
 

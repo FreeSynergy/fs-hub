@@ -25,8 +25,22 @@ pub(super) enum Applied {
     Withheld,
     /// Above the limit, with this many bytes.
     TooLarge(usize),
-    /// The object was marked by another program, or this is not the way back.
+    /// The object was marked by another program, and this program may not lift that.
     Marked,
+    /// This program first wrote the object, and another program's mark keeps it away for now.
+    Held,
+}
+
+/// What a mark says to an unmarked put.
+enum Passage {
+    /// Nothing in the way.
+    Free,
+    /// The mark was lifted by another program than the owner: its old version stays out.
+    LiftedOnly,
+    /// The owner's write: it waits.
+    Held,
+    /// Refused.
+    Refused,
 }
 
 impl ObjectCollector {
@@ -63,14 +77,27 @@ impl ObjectCollector {
         if !manifest.writes.contains(&obj.envelope.object_type) {
             return Ok(Applied::Withheld);
         }
+        let held = self.objects.get(id).await?;
+        // The type it has now counts too, or a program could overwrite what it may not write by naming
+        // another type. Without a copy, the log still knows.
+        let current_type = match &held {
+            Some(have) => Some(have.envelope.object_type.clone()),
+            None => self.history_of(id).await?.object_type,
+        };
+        if current_type.is_some_and(|t| !manifest.writes.contains(&t)) {
+            return Ok(Applied::Withheld);
+        }
         let bytes = json_len(&obj);
         if bytes > MAX_OBJECT_BYTES {
             return Ok(Applied::TooLarge(bytes));
         }
-        if !self.may_come_back(program, id, was_sensitive).await? {
-            return Ok(Applied::Marked);
+        match self.passage(program, id, was_sensitive).await? {
+            Passage::Free => {}
+            Passage::LiftedOnly => return Ok(Applied::Same),
+            Passage::Held => return Ok(Applied::Held),
+            Passage::Refused => return Ok(Applied::Marked),
         }
-        if let Some(have) = self.objects.get(id).await? {
+        if let Some(have) = held {
             // The program that first wrote it decides the fields a reader never gets. From any other
             // they are blank, and that must not overwrite what the hub holds.
             let same = if origin_of(self.log.as_ref(), id).await? == program {
@@ -91,29 +118,33 @@ impl ObjectCollector {
         })
     }
 
-    /// While a mark holds, only the program that set it can bring the object back, with a change that
-    /// says it was sensitive. A stale copy from anywhere else must not bring the secret back.
-    async fn may_come_back(
-        &self,
-        program: &str,
-        id: ObjectId,
-        was_sensitive: bool,
-    ) -> Result<bool> {
-        let Some(removal) = self.marked.find(id).await? else {
-            return Ok(true);
+    /// While a mark holds: the owner and the program that set it can lift it, with a change that says it
+    /// was sensitive, and nobody else. The owner goes on writing; that waits, it is not refused. A stale
+    /// copy from anywhere else must not bring the secret back. And when the mark lifts, the owner's object
+    /// must win, so what the marking program brings along stays out: it may be older than what the owner
+    /// holds, which the hub cannot tell.
+    async fn passage(&self, program: &str, id: ObjectId, was_sensitive: bool) -> Result<Passage> {
+        let Some(removal) = self.marked.find(id).await?.filter(|r| r.holds) else {
+            return Ok(Passage::Free);
         };
-        if !removal.holds {
-            return Ok(true);
+        let is_owner = removal.origin == program;
+        if was_sensitive && (is_owner || removal.by == program) {
+            let lifted = Removal {
+                holds: false,
+                ..removal
+            };
+            self.marked.record(id, &lifted).await?;
+            return Ok(if is_owner {
+                Passage::Free
+            } else {
+                Passage::LiftedOnly
+            });
         }
-        if removal.by != program || !was_sensitive {
-            return Ok(false);
-        }
-        let lifted = Removal {
-            holds: false,
-            ..removal
-        };
-        self.marked.record(id, &lifted).await?;
-        Ok(true)
+        Ok(if is_owner {
+            Passage::Held
+        } else {
+            Passage::Refused
+        })
     }
 
     async fn apply_delete(

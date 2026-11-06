@@ -3,7 +3,8 @@
 mod common;
 
 use common::{Env, note, notes_manifest, session};
-use fs_store::traits::ObjectRepository;
+use fs_store::ActivityKind;
+use fs_store::traits::{ActivityLog, ObjectRepository};
 
 #[tokio::test]
 async fn two_concurrent_edits_end_the_same_everywhere() {
@@ -39,4 +40,30 @@ async fn two_concurrent_edits_end_the_same_everywhere() {
     // A later reader sees all of it, in order.
     let late = session(&env, notes_manifest("late")).await;
     assert_eq!(late.pull(None, 0).await.unwrap().activities.len(), 3);
+}
+
+/// A log-only entry of the reader changes nothing: it must not swallow what another program wrote.
+#[tokio::test]
+async fn an_own_log_entry_does_not_swallow_an_update() {
+    let env = Env::start();
+    let (a_store, b_store) = (env.store("a").await, env.store("b").await);
+    let a = session(&env, notes_manifest("a")).await;
+    let b = session(&env, notes_manifest("b")).await;
+    let o = note("n", 8);
+    let id = o.envelope.id;
+    a_store.put(o, "ada").await.unwrap();
+    a.sync_once(a_store.as_ref()).await.unwrap();
+    b.sync_once(b_store.as_ref()).await.unwrap();
+
+    let mut copy = a_store.get(id).await.unwrap().unwrap();
+    copy.content["text"] = serde_json::json!("from a");
+    a_store.put(copy, "ada").await.unwrap();
+    a.sync_once(a_store.as_ref()).await.unwrap();
+    b_store
+        .log(ActivityKind::Read, id, "bob", serde_json::json!({}))
+        .await
+        .unwrap();
+    b.sync_once(b_store.as_ref()).await.unwrap();
+    let got = b_store.get(id).await.unwrap().unwrap();
+    assert_eq!(got.content["text"], "from a");
 }

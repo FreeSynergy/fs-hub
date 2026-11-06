@@ -20,6 +20,11 @@ pub enum Error {
     /// Bad request (unknown program, bad manifest, ...).
     #[error("{0}")]
     Invalid(String),
+    /// The list of marked objects is gone: what it kept back could go out.
+    #[error(
+        "{0} is gone, and old content of marked objects could be delivered; restore it (see DESIGN.md)"
+    )]
+    MarksLost(String),
     /// Another hub owns the socket.
     #[error("a hub is already running on {0}")]
     AlreadyRunning(String),

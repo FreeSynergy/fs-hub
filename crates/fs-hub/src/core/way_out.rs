@@ -45,19 +45,29 @@ impl LogSource {
     }
 
     /// The program itself changed this object later: its version wins at the hub, so this older one must
-    /// not win at the program, or two concurrent edits differ for good.
+    /// not win at the program, or two concurrent edits differ for good. Its own log-only entries change
+    /// nothing, and must not swallow what another program wrote.
     pub(super) async fn superseded(&self, program: &str, a: &Activity) -> Result<bool> {
-        let own_later = self
-            .log
-            .activities(&ActivityFilter {
-                after: Some(a.id),
-                object: Some(a.object),
-                actor: Some(program.to_string()),
-                limit: Some(1),
-                ..Default::default()
-            })
-            .await?;
-        Ok(!own_later.is_empty())
+        let mut after = a.id;
+        loop {
+            let own_later = self
+                .log
+                .activities(&ActivityFilter {
+                    after: Some(after),
+                    object: Some(a.object),
+                    actor: Some(program.to_string()),
+                    limit: Some(1),
+                    ..Default::default()
+                })
+                .await?;
+            let Some(entry) = own_later.first() else {
+                return Ok(false);
+            };
+            if entry.kind.changes_state() {
+                return Ok(true);
+            }
+            after = entry.id;
+        }
     }
 
     /// Make an entry ready to go out.

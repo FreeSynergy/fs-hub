@@ -29,16 +29,31 @@ impl HubSession {
 
     /// Program -> hub: hand over log entries (idempotent on the hub side). However much this is, it
     /// goes in pieces that fit a message. An entry above [`crate::MAX_OBJECT_BYTES`] does not leave
-    /// the program: it is a problem in the outcome, and `last_accepted` moves past it.
+    /// the program: it is a problem in the outcome, and `last_accepted` moves past it. `last_accepted`
+    /// behind what was sent means the hub holds an entry back, because another program's mark keeps that
+    /// object away: everything from it on must stay unsynced, and goes again until it is taken.
     pub async fn push(&self, activities: Vec<Activity>) -> Result<PushOutcome> {
         let plan = push_plan::plan(activities);
         let mut outcome = plan.refused;
-        if plan.pieces.is_empty() && outcome == PushOutcome::default() {
-            return self.call(|r| Cmd::Push(vec![], r)).await;
-        }
+        let refused_up_to = outcome.last_accepted;
+        let Some(sent_up_to) = plan.pieces.last().and_then(|p| p.last()).map(|a| a.id) else {
+            if outcome == PushOutcome::default() {
+                return self.call(|r| Cmd::Push(vec![], r)).await;
+            }
+            return Ok(outcome);
+        };
+        let mut hub_acknowledged = None;
         for piece in plan.pieces {
-            outcome.absorb(self.call(|r| Cmd::Push(piece, r)).await?);
+            let answer = self.call(|r| Cmd::Push(piece, r)).await?;
+            hub_acknowledged = answer.last_accepted;
+            outcome.absorb(answer);
         }
+        let all_taken = hub_acknowledged.is_some_and(|acked| acked >= sent_up_to);
+        outcome.last_accepted = if all_taken {
+            hub_acknowledged.max(refused_up_to)
+        } else {
+            hub_acknowledged
+        };
         Ok(outcome)
     }
 
