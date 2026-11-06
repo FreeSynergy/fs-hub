@@ -35,7 +35,7 @@ on traits; concrete types are wired in `core/hub.rs`.
 
 ## State
 
-Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests).
+Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests). Test dependency bumped to fs-calendar v0.4.0 (calendar provider rule); 9 tests before and after.
 
 | Area | State |
 |---|---|

@@ -626,11 +626,12 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "fs-calendar-core"
-version = "0.3.0"
-source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.3.0#f0d137f64fc82db79642f7337a08f91ef0ac438b"
+version = "0.4.0"
+source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.4.0#c828b4ca54617a2f6f837a2e262c9e5d651faa76"
 dependencies = [
  "async-trait",
  "chrono",
+ "fs-interfaces 0.4.0",
  "fs-jscalendar",
  "fs-store",
  "fs-tasks-core",
@@ -711,6 +712,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-interfaces"
+version = "0.4.0"
+source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.4.0#faddd65d7e7d77a87736172b749abdb90980d290"
+dependencies = [
+ "capnp",
+]
+
+[[package]]
 name = "fs-jscalendar"
 version = "0.1.0"
 source = "git+https://github.com/FreeSynergy/fs-jscalendar?tag=v0.1.0#10ba1ab5d6ca93065224b90202c220b127fa60a6"
@@ -760,11 +769,12 @@ dependencies = [
 
 [[package]]
 name = "fs-tasks-core"
-version = "0.3.0"
-source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.3.0#1fc684a88f31e4dd14b4d79e9a0c490ccc5e30de"
+version = "0.4.0"
+source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.4.0#75b203a68d7eaaf60dee0eb430170d0a63c5c851"
 dependencies = [
  "async-trait",
  "chrono",
+ "fs-interfaces 0.4.0",
  "fs-jscalendar",
  "fs-store",
  "serde",
