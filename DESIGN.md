@@ -52,7 +52,7 @@ Version 0.1.0, local only (no remote, never pushed). Linux, Unix socket. ADR 004
 | Client `fs-hub-client`: `connect` / `connect_at` -> `HubStatus::{Connected, Absent}`; `offer_install()` returns the message only; `HubSession::{push, pull, ack, programs, proposals, subscribe, sync_once}` | done. The RPC runs on a private thread, the session is `Send + Sync` |
 | `sync_once(store)`: push unsynced -> `mark_synced`; pull -> apply into the program's store -> `ack`; pulled changes are marked synced so they do not travel back | done |
 | Peer check: connection must come from the socket owner's uid (`SO_PEERCRED`) | done (minimal) |
-| Tests | 7 end-to-end (`crates/fs-hub/tests/{sharing,proposals,push_restart,cursors,subscribe,absent,refusal}.rs`, shared `common`) + 2 envelope round-trip tests (`fs-hub-proto/tests/envelope.rs`); the e2e tests use real `fs-contacts-core` + `fs-calendar-core`, own stores): sharing contact -> event, updates/deletes, no echo, declared-types filter, proposals without sensitive data, idempotent push and restart, hub-kept pull cursor, subscribe, no hub / stale socket / hub appears later, second hub refused, bad manifest |
+| Tests | 7 end-to-end (`crates/fs-hub/tests/{sharing,proposals,push_restart,cursors,subscribe,absent,refusal}.rs`, shared `common`) + 2 envelope round-trip tests (`fs-hub-proto/tests/envelope.rs`); the e2e tests use real `fs-people-core` + `fs-calendar-core`, own stores): sharing contact -> event, updates/deletes, no echo, declared-types filter, proposals without sensitive data, idempotent push and restart, hub-kept pull cursor, subscribe, no hub / stale socket / hub appears later, second hub refused, bad manifest |
 | Example | `cargo run -p fs-hub --example two_programs` |
 
 ## Crates
@@ -69,7 +69,7 @@ Version 0.1.0, local only (no remote, never pushed). Linux, Unix socket. ADR 004
 * **Cursors.** Push: the program's own log is the cursor (`last_accepted`); a bad single entry is reported in `problems` and the cursor moves past it (one bad entry must not block the log). Pull: `since` zero = hub-kept cursor; `pull` does not move it, `ack` does, so a crash between apply and ack only repeats work (applying is idempotent: identical content is skipped).
 * **No echo.** The client marks the log entries it wrote while applying pulled changes as synced (only when no foreign unsynced entry precedes them, because `mark_synced` acknowledges a prefix). If any slip through, the hub skips them as content-identical.
 * **One bad program cannot see more than it declared**: `reads` filter on the hub side. `writes` is enforced too (undeclared types are `withheld`).
-* **Proposals only across programs.** Duplicates inside one program are that program's own business (`fs-contacts-core` finds them). The hub only proposes; a human confirms in a program, which writes the `Relationship` (`owl:sameAs`) that the hub then respects.
+* **Proposals only across programs.** Duplicates inside one program are that program's own business (`fs-people-core` finds them). The hub only proposes; a human confirms in a program, which writes the `Relationship` (`owl:sameAs`) that the hub then respects.
 * **Hub store is unencrypted** (no key vault yet), which is why sensitive objects are refused instead of stored.
 
 ## Not done yet

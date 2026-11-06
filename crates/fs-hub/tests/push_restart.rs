@@ -3,7 +3,7 @@
 mod common;
 
 use common::{Env, config, contacts_manifest, person, session};
-use fs_contacts_core::ContactRepo;
+use fs_people_core::ContactRepo;
 use fs_hub::Daemon;
 use fs_hub_client::Manifest;
 use fs_store::{ActivityFilter, Store};

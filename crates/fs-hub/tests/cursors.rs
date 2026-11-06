@@ -3,7 +3,7 @@
 mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
-use fs_contacts_core::ContactRepo;
+use fs_people_core::ContactRepo;
 
 #[tokio::test]
 async fn pull_cursor_is_kept_by_the_hub() {

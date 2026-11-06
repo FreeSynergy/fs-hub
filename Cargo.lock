@@ -416,9 +416,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "375989decec1a0fa424442bed520fa12ede43a48475ce8c7417d2c69b32b5f6b"
+checksum = "4ff2a8126fff0f8c839080d619675a585e61720bb12d2baceae45769fd66f155"
 dependencies = [
  "find-msvc-tools",
  "shlex 2.0.1",
@@ -738,6 +738,7 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 [[package]]
 name = "fs-calendar-core"
 version = "0.1.0"
+source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.1.0#2002501929ab19d6c1d19ad00c8d8d65bf7ca1c9"
 dependencies = [
  "async-trait",
  "calcard",
@@ -752,20 +753,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs-contacts-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "calcard",
- "chrono",
- "fs-store",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
 name = "fs-hub"
 version = "0.1.0"
 dependencies = [
@@ -774,9 +761,9 @@ dependencies = [
  "capnp-rpc",
  "chrono",
  "fs-calendar-core",
- "fs-contacts-core",
  "fs-hub-client",
  "fs-hub-proto",
+ "fs-people-core",
  "fs-store",
  "futures",
  "serde",
@@ -821,6 +808,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-people-core"
+version = "0.1.0"
+source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.1.0#28497b2b87c125f8e2bcf05dc411d46898b2c16c"
+dependencies = [
+ "async-trait",
+ "calcard",
+ "chrono",
+ "fs-store",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "fs-set-times"
 version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -834,6 +836,7 @@ dependencies = [
 [[package]]
 name = "fs-store"
 version = "0.2.0"
+source = "git+https://github.com/FreeSynergy/fs-store?tag=v0.2.0#bf919bce0197e115f011d9192f9f2757b2b551e2"
 dependencies = [
  "async-trait",
  "base64",

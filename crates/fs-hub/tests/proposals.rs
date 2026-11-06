@@ -3,7 +3,7 @@
 mod common;
 
 use common::{Env, contacts_manifest, person, session};
-use fs_contacts_core::{ContactRepo, ListFilter};
+use fs_people_core::{ContactRepo, ListFilter};
 use fs_store::{Query, Store};
 
 #[tokio::test]

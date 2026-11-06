@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use fs_contacts_core::Card;
+use fs_people_core::Card;
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubSession, HubStatus, Manifest, connect_at};
 use fs_store::{OpenOptions, TursoStore};

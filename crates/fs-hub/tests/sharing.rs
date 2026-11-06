@@ -4,7 +4,7 @@ mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
 use fs_calendar_core::{CalendarRepo, Event};
-use fs_contacts_core::ContactRepo;
+use fs_people_core::ContactRepo;
 use fs_store::{ActivityFilter, Query, Store};
 
 #[tokio::test]
