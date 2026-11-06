@@ -1,6 +1,7 @@
 //! Shared test environment: a hub in a temp dir, sessions and stores for two program cores.
 #![allow(dead_code)] // every test file uses a different subset of these helpers
 
+pub mod parts;
 pub mod raw;
 
 use std::sync::Arc;
@@ -71,6 +72,10 @@ pub async fn session(env: &Env, m: Manifest) -> HubSession {
         HubStatus::Connected(s) => s,
         HubStatus::Absent => panic!("hub should be there"),
     }
+}
+
+pub fn only_reads_notes(name: &str) -> Manifest {
+    Manifest::new(name, "0.1.0").read(&["Note"])
 }
 
 pub fn notes_manifest(name: &str) -> Manifest {

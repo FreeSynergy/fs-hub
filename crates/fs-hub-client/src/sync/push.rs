@@ -1,27 +1,33 @@
 //! Push step: unsynced local log -> hub.
 //!
 //! Pattern: Iterator-style batching — takes the log in small batches, marks each synced once the hub
-//! acknowledged it; `HubSession::push` cuts a batch to what fits a message. Two kinds of entries do
-//! not go, and are marked all the same:
-//! * what came from the hub (`hub:*`). This is what stops an echo: after a crash, or behind a foreign
-//!   entry, such an entry may still be unsynced, and pushing it would roll the hub back to an old
-//!   version.
-//! * a log-only entry about a sensitive object, or one the store no longer has, so nobody can say it
-//!   was not sensitive: it counts as withheld.
+//! acknowledged it; `HubSession::push` cuts a batch to what fits a message. What goes depends on the
+//! object as it is now, not as it was when the entry was written:
+//! * what came from the hub (`hub:*`) never goes, and is marked all the same. This is what stops an
+//!   echo: after a crash, or behind a foreign entry, such an entry may still be unsynced, and pushing it
+//!   would roll the hub back to an old version.
+//! * of an object marked sensitive now, a change goes as stubs only, so the history from before the mark
+//!   stays home too. A log-only entry does not go, and neither does one about an object the store no
+//!   longer has, as nobody can say it was not sensitive; both count as withheld.
 
 use fs_hub_proto::ScanSize;
 use fs_store::{Activity, ActivityFilter, Store};
 
 use super::apply::HUB_ACTOR_PREFIX;
 use super::report::SyncReport;
+use crate::push_plan::stub_images;
 use crate::{Error, HubSession, Result};
 
-async fn may_tell(store: &dyn Store, a: &Activity) -> Result<bool> {
+/// What may go of `a`, looking at the object as it is now.
+async fn what_may_go(store: &dyn Store, a: Activity) -> Result<Option<Activity>> {
+    let current = store.get(a.object).await?;
+    let marked = current
+        .as_ref()
+        .is_some_and(|o| !o.envelope.sensitive.is_empty());
     if a.kind.changes_state() {
-        return Ok(true); // the images say for themselves, `push_plan` looks at them
+        return Ok(Some(if marked { stub_images(a) } else { a }));
     }
-    let object = store.get(a.object).await?;
-    Ok(object.is_some_and(|o| o.envelope.sensitive.is_empty()))
+    Ok((current.is_some() && !marked).then_some(a))
 }
 
 pub(super) async fn push_all(
@@ -47,15 +53,15 @@ pub(super) async fn push_all(
             if a.actor.starts_with(HUB_ACTOR_PREFIX) {
                 continue;
             }
-            if may_tell(store, &a).await? {
-                send.push(a);
-            } else {
-                report.withheld += 1;
+            match what_may_go(store, a).await? {
+                Some(a) => send.push(a),
+                None => report.withheld += 1,
             }
         }
         if let Some(send_last) = send.last().map(|a| a.id) {
-            report.pushed += send.len();
+            let handed_over = send.len();
             let outcome = hub.push(send).await?;
+            report.pushed += handed_over - outcome.refused as usize;
             report.accepted += outcome.accepted;
             report.skipped += outcome.skipped;
             report.withheld += outcome.withheld;

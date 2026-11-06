@@ -13,7 +13,7 @@ use std::sync::Arc;
 use fs_hub_proto::common_capnp::{change_listener, subscription};
 use fs_hub_proto::{blank_for_delivery, images_of};
 use fs_interfaces::rpc::{ChangeSender, Notice, change_channel, forward};
-use fs_store::{Activity, ActivityKind};
+use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::task::JoinHandle;
 
@@ -21,8 +21,12 @@ use crate::HubCore;
 
 /// What reaches the forwarder.
 enum Event {
-    /// Tell this.
-    Tell(Box<Notice>),
+    /// Tell this, if it is still allowed by then.
+    Tell {
+        notice: Box<Notice>,
+        object: ObjectId,
+        entry: ActivityId,
+    },
     /// Changes cannot be told anymore, for this reason.
     End(String),
 }
@@ -45,11 +49,30 @@ pub(super) fn subscribe(
 ) -> subscription::Client {
     let (sender, receiver) = change_channel();
     let changes = core.changes();
+    let core_for_delivery = core.clone();
     let task = tokio::task::spawn_local(watch(core, program, reads, changes, sender));
-    forward(receiver, StopOnDrop(task), listener, |event| async move {
-        match event {
-            Event::Tell(notice) => Ok(Some(*notice)),
-            Event::End(why) => Err(why),
+    let at_delivery = core_for_delivery;
+    forward(receiver, StopOnDrop(task), listener, move |event| {
+        let core = at_delivery.clone();
+        async move {
+            match event {
+                Event::Tell {
+                    notice,
+                    object,
+                    entry,
+                } => {
+                    // A notice can wait in the queue, and the object can be marked meanwhile.
+                    if matches!(*notice, Notice::Deleted(_)) {
+                        return Ok(Some(*notice));
+                    }
+                    match core.withdrawn(object, entry).await {
+                        Ok(false) => Ok(Some(*notice)),
+                        Ok(true) => Ok(None),
+                        Err(e) => Err(e.to_string()),
+                    }
+                }
+                Event::End(why) => Err(why),
+            }
         }
     })
 }
@@ -74,7 +97,11 @@ async fn watch(
                     }
                 }
                 match notice_of(&a) {
-                    Ok(Some(notice)) => sender.send(Event::Tell(Box::new(notice))),
+                    Ok(Some(notice)) => sender.send(Event::Tell {
+                        notice: Box::new(notice),
+                        object: a.object,
+                        entry: a.id,
+                    }),
                     Ok(None) => {}
                     Err(why) => {
                         sender.send(Event::End(why));

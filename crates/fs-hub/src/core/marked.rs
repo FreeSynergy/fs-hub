@@ -1,19 +1,24 @@
-//! Objects removed from the hub because their program marked them sensitive.
+//! Objects taken off the hub because a program marked them sensitive.
 //!
 //! The hub's log is append-only: the entries from before the mark still hold the old content, and the
 //! delete's `before` image holds it too. Until `fs-store` has a purge, that content stays on the hub's
-//! disk, and this list is what keeps it from going out: an entry at or before the removal is delivered
-//! without payload and without time. A later version of the object, if the mark is taken off, is newer
-//! and delivered as usual.
+//! disk, and this list is all that keeps it from going out. So `marks.db` is safety-relevant: reset it,
+//! and the old content can be delivered again.
+//!
+//! An entry within the reach of a removal goes to nobody, except the delete, which readers get as a
+//! plain delete. The program that first wrote the object does not get that either: a mark takes the
+//! object off the hub, it never deletes another program's object. While the mark holds, only the
+//! program that set it can bring the object back.
 //!
 //! Pattern: Repository — `MarkedRemovals` is the interface; `StoreMarked` keeps one small object per
-//! removed object in the hub's `state.db`.
+//! removed object in a store of its own: a program chooses object ids, and this way they meet nothing
+//! but its own entry.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fs_store::traits::ObjectRepository;
-use fs_store::{ActivityId, Envelope, ObjectId, StoredObject, TursoStore};
+use fs_store::traits::{HistoryRetention, ObjectRepository};
+use fs_store::{ActivityId, Envelope, ObjectId, Retention, StoredObject, TursoStore};
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -27,57 +32,71 @@ const MARKED_ACTOR: &str = "hub";
 pub enum Reach {
     /// The removal is under way: everything logged so far, and its delete.
     Open,
-    /// Everything up to and including this entry, the delete.
+    /// Everything up to and including this entry.
     UpTo(ActivityId),
 }
 
-impl Reach {
-    fn covers(self, entry: ActivityId) -> bool {
-        match self {
-            Self::Open => true,
-            Self::UpTo(last) => entry <= last,
+/// One object on the list.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Removal {
+    /// How far it reaches.
+    pub reach: Reach,
+    /// The program that set the mark.
+    pub by: String,
+    /// The program that first wrote the object.
+    pub origin: String,
+    /// The mark still holds: only `by` can bring the object back.
+    pub holds: bool,
+}
+
+impl Removal {
+    /// Is this log entry from before the removal?
+    pub fn covers(&self, entry: ActivityId) -> bool {
+        match self.reach {
+            Reach::Open => true,
+            Reach::UpTo(last) => entry <= last,
         }
     }
 }
 
-/// The list of objects removed because they were marked.
+/// The list of objects taken off the hub because they were marked.
 #[async_trait]
 pub trait MarkedRemovals: Send + Sync {
-    /// Remember how far the removal of `object` reaches.
-    async fn record(&self, object: ObjectId, reach: Reach) -> Result<()>;
-    /// How far the removal of `object` reaches, if there was one.
-    async fn find(&self, object: ObjectId) -> Result<Option<Reach>>;
-    /// Is this log entry about `object` from before its removal?
-    async fn covers(&self, object: ObjectId, entry: ActivityId) -> Result<bool> {
-        Ok(self.find(object).await?.is_some_and(|r| r.covers(entry)))
-    }
+    /// Remember this removal of `object`.
+    async fn record(&self, object: ObjectId, removal: &Removal) -> Result<()>;
+    /// The removal of `object`, if there was one.
+    async fn find(&self, object: ObjectId) -> Result<Option<Removal>>;
 }
 
 /// [`MarkedRemovals`] over a `TursoStore`.
 pub struct StoreMarked {
-    state: Arc<TursoStore>,
+    marks: Arc<TursoStore>,
 }
 
 impl StoreMarked {
-    /// Use `state`.
-    pub fn new(state: Arc<TursoStore>) -> Self {
-        Self { state }
+    /// Use `marks`, a store for this alone: it keeps no history.
+    pub async fn new(marks: Arc<TursoStore>) -> Result<Self> {
+        marks.set_retention(Retention::steps(0)).await?;
+        Ok(Self { marks })
     }
 }
 
 #[async_trait]
 impl MarkedRemovals for StoreMarked {
-    async fn record(&self, object: ObjectId, reach: Reach) -> Result<()> {
+    async fn record(&self, object: ObjectId, removal: &Removal) -> Result<()> {
         let mut envelope = Envelope::new(MARKED_TYPE, object.to_string());
         envelope.id = object;
-        let content = serde_json::to_value(reach)?;
+        let content = serde_json::to_value(removal)?;
         let entry = StoredObject::new(envelope, MARKED_CONTENT_TYPE, content);
-        self.state.put(entry, MARKED_ACTOR).await?;
+        let written = self.marks.put(entry, MARKED_ACTOR).await?;
+        self.marks.mark_synced(written.id).await?;
+        self.marks.compact().await?;
         Ok(())
     }
 
-    async fn find(&self, object: ObjectId) -> Result<Option<Reach>> {
-        let Some(entry) = self.state.get(object).await? else {
+    async fn find(&self, object: ObjectId) -> Result<Option<Removal>> {
+        let found = self.marks.get(object).await?;
+        let Some(entry) = found.filter(|o| o.envelope.object_type == MARKED_TYPE) else {
             return Ok(None);
         };
         Ok(Some(serde_json::from_value(entry.content)?))

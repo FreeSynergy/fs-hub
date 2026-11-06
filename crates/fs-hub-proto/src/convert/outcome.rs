@@ -30,6 +30,7 @@ pub fn read_push_outcome(r: hub::session::push_results::Reader<'_>) -> Result<Pu
         accepted: r.get_accepted(),
         skipped: r.get_skipped(),
         withheld: r.get_withheld(),
+        refused: 0,
         problems,
     })
 }

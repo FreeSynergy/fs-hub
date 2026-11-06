@@ -107,6 +107,8 @@ pub struct PushOutcome {
     pub skipped: u32,
     /// Sensitive or undeclared types.
     pub withheld: u32,
+    /// Entries that never left the program (each has a problem). Not on the wire.
+    pub refused: u32,
     /// Problems reported for single entries.
     pub problems: Vec<Problem>,
 }
@@ -118,6 +120,7 @@ impl PushOutcome {
         self.accepted += next.accepted;
         self.skipped += next.skipped;
         self.withheld += next.withheld;
+        self.refused += next.refused;
         self.problems.extend(next.problems);
     }
 }
@@ -144,7 +147,8 @@ pub struct PullNote {
 #[derive(Clone, Debug, Default)]
 pub struct PullBatch {
     /// Activities of other programs. A `Null` payload on a state-changing kind means the content did
-    /// not come: too large for any message, or the object was marked sensitive later.
+    /// not come: too large for any message, or the delete of an object marked later. Log-only entries
+    /// come without their payload: it is not delivered to other programs (provisional).
     pub activities: Vec<fs_store::Activity>,
     /// The note of each activity, by its id.
     pub notes: std::collections::BTreeMap<ActivityId, PullNote>,

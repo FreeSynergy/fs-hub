@@ -23,7 +23,6 @@ pub async fn serve(
 ) {
     let owner =
         std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&socket).expect("socket metadata"));
-    let bootstrap: hub::Client = new_client(HubImpl { core });
     tokio::pin!(shutdown);
     loop {
         tokio::select! {
@@ -35,7 +34,7 @@ pub async fn serve(
                     Ok(c) if c.uid() == owner => {}
                     _ => { tracing::warn!("rejected a connection from another user"); continue; }
                 }
-                spawn_connection(stream, bootstrap.clone());
+                spawn_connection(stream, new_client(HubImpl::new(core.clone())));
             }
         }
     }

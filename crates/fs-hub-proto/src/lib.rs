@@ -29,12 +29,12 @@ mod error;
 mod limits;
 mod types;
 
-pub use content::same_content;
+pub use content::{same_as_written, same_content};
 pub use contract::{CONTRACT_VERSION, default_socket_path};
 pub use convert::*;
 pub use delivery::{
-    SENSITIVE_MARKER, blank_for_delivery, blank_images, keep_held_back, sensitive_stub,
-    sensitive_stub_envelope,
+    DELIVERED_INDEX_KEYS, SENSITIVE_MARKER, blank_for_delivery, blank_images, blank_object,
+    keep_held_back, plain_delete_envelope, sensitive_stub, sensitive_stub_envelope,
 };
 pub use error::{Error, Result};
 pub use limits::{

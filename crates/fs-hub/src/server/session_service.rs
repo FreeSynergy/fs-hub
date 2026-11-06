@@ -3,6 +3,7 @@
 //! Pattern: Adapter — one session per registered program; the [`LiveGuard`] (RAII) counts it as
 //! live until the capability is dropped.
 
+use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -10,6 +11,9 @@ use fs_hub_proto::hub_capnp::session;
 use fs_hub_proto::{
     read_activity_id, read_pushed_list, write_activity_id, write_pulled_list, write_push_outcome,
 };
+
+use fs_interfaces::rpc::invalid_request;
+use fs_store::ActivityId;
 
 use super::errors::rpc_err;
 use super::subscription::subscribe;
@@ -22,6 +26,8 @@ pub(super) struct SessionImpl {
     core: Arc<HubCore>,
     program: String,
     _live: LiveGuard,
+    /// How far full pulls of this session got: nobody can have applied more than that.
+    pulled_up_to: Cell<Option<ActivityId>>,
 }
 
 impl SessionImpl {
@@ -30,6 +36,7 @@ impl SessionImpl {
             core,
             program,
             _live: live,
+            pulled_up_to: Cell::new(None),
         }
     }
 }
@@ -73,6 +80,10 @@ impl session::Server for SessionImpl {
             .pull(&self.program, since, limit, envelope_only)
             .await
             .map_err(rpc_err)?;
+        if !envelope_only {
+            self.pulled_up_to
+                .set(self.pulled_up_to.get().max(batch.last));
+        }
         let mut r = results.get();
         let count = u32::try_from(batch.activities.len()).map_err(rpc_err)?;
         write_pulled_list(
@@ -92,6 +103,12 @@ impl session::Server for SessionImpl {
         _: session::AckResults,
     ) -> Result<(), capnp::Error> {
         if let Some(up_to) = read_activity_id(params.get()?.get_up_to()?).map_err(rpc_err)? {
+            // The cursor means "the content up to here is applied", also for a reader of summaries.
+            if self.pulled_up_to.get().is_none_or(|pulled| up_to > pulled) {
+                return Err(invalid_request(format!(
+                    "ack of {up_to} is beyond what this session pulled with content"
+                )));
+            }
             self.core.ack(&self.program, up_to).await.map_err(rpc_err)?;
         }
         Ok(())

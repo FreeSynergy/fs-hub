@@ -30,7 +30,7 @@ pub mod server;
 pub use core::{
     ActivitySink, ActivitySource, CursorRepository, HubCore, LiveGuard, LogSource, MarkedRemovals,
     ObjectCollector, OriginalTimes, Presence, ProgramLock, ProgramRegistry, ProgramState,
-    ProposalEngine, Reach, SharedIdentity, StoreCursors, StoreMarked, StoreOriginals,
+    ProposalEngine, Reach, Removal, SharedIdentity, StoreCursors, StoreMarked, StoreOriginals,
     StoredRegistry, Visibility,
 };
 pub use daemon::{Config, Daemon, run_blocking};

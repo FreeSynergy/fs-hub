@@ -1,12 +1,13 @@
-//! End-to-end through client and hub: marking an object sensitive, and taking the mark off.
+//! End-to-end through client and hub: marking an object sensitive, and taking the mark off. Who may do
+//! that: `mark_rights.rs`. What a crash leaves: `mark_crash.rs`.
 
 mod common;
 
 use common::{Env, config, note, notes_manifest, session};
 use fs_hub::Daemon;
 use fs_hub_client::MAX_OBJECT_BYTES;
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, ActivityKind, StoredObject};
+use fs_store::traits::ObjectRepository;
+use fs_store::{ActivityKind, StoredObject};
 
 const OLD: &str = "old secret text";
 
@@ -95,13 +96,23 @@ async fn a_mark_removes_the_copy_everywhere_and_nothing_old_goes_out_any_more() 
     let late = session(&env, notes_manifest("late")).await;
     let page = late.pull(None, 0).await.unwrap();
     let kinds: Vec<_> = page.activities.iter().map(|a| a.kind).collect();
-    assert_eq!(kinds, [ActivityKind::Create, ActivityKind::Delete]);
-    for a in &page.activities {
-        assert!(a.payload.is_null(), "{:?}", a.payload);
-        let entry = &page.notes[&a.id];
-        assert_eq!(entry.original_at, None);
-        assert_ne!(entry.envelope.name, "real name");
-    }
+    assert_eq!(
+        kinds,
+        [ActivityKind::Delete],
+        "nothing from before the mark"
+    );
+    let removal = &page.activities[0];
+    assert!(removal.payload.is_null(), "{:?}", removal.payload);
+    assert_eq!(removal.at.timestamp_millis(), 0, "no time");
+    assert_eq!(removal.actor, "", "nobody");
+    let entry = &page.notes[&removal.id];
+    assert_eq!(entry.original_at, None);
+    assert_ne!(entry.envelope.name, "real name");
+    assert_eq!(
+        entry.envelope.sensitive.len(),
+        0,
+        "a plain delete, no marker"
+    );
     let late_store = env.store("late").await;
     let down = late.sync_once(late_store.as_ref()).await.unwrap();
     assert_eq!(down.failed.len(), 0, "{:?}", down.failed);
@@ -125,9 +136,10 @@ async fn only_the_entries_from_before_a_mark_stay_out() {
 
     let reader = session(&env, notes_manifest("reader")).await;
     let page = reader.pull(None, 0).await.unwrap();
-    assert_eq!(page.activities.len(), 3);
-    assert!(page.activities[0].payload.is_null() && page.activities[1].payload.is_null());
-    assert!(!page.activities[2].payload.is_null());
+    let kinds: Vec<_> = page.activities.iter().map(|a| a.kind).collect();
+    assert_eq!(kinds, [ActivityKind::Delete, ActivityKind::Create]);
+    assert!(page.activities[0].payload.is_null());
+    assert!(!page.activities[1].payload.is_null());
     assert!(!format!("{:?}", page.activities).contains(OLD));
     let own = env.store("reader").await;
     assert_eq!(
@@ -137,49 +149,5 @@ async fn only_the_entries_from_before_a_mark_stay_out() {
     assert_eq!(
         own.get(id).await.unwrap().unwrap().content["text"],
         "open now"
-    );
-}
-
-/// A log-only entry about a sensitive object does not leave the program, nor does it block the log.
-#[tokio::test]
-async fn log_entries_about_a_sensitive_object_stay_home() {
-    let env = Env::start();
-    let store = env.store("owner").await;
-    let owner = session(&env, notes_manifest("owner")).await;
-    let o = marked(note("secret", 8));
-    let id = o.envelope.id;
-    store.put(o, "ada").await.unwrap();
-    store
-        .log(
-            ActivityKind::Read,
-            id,
-            "ada",
-            serde_json::json!({"note": OLD}),
-        )
-        .await
-        .unwrap();
-    let plain = note("plain", 8);
-    let plain_id = plain.envelope.id;
-    store.put(plain, "ada").await.unwrap();
-
-    let up = owner.sync_once(store.as_ref()).await.unwrap();
-    assert_eq!((up.withheld, up.pushed, up.accepted), (2, 2, 1));
-    let unsynced = ActivityFilter {
-        unsynced_only: true,
-        ..Default::default()
-    };
-    assert_eq!(
-        store.activities(&unsynced).await.unwrap().len(),
-        0,
-        "moved past"
-    );
-    assert!(
-        env.hub()
-            .core()
-            .store()
-            .get(plain_id)
-            .await
-            .unwrap()
-            .is_some()
     );
 }

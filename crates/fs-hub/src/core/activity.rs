@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use fs_hub_proto::{PullBatch, PushOutcome, Pushed};
-use fs_store::{Activity, ActivityId};
+use fs_store::{Activity, ActivityId, ObjectId};
 use tokio::sync::broadcast;
 
 use crate::Result;
@@ -38,6 +38,8 @@ pub trait ActivitySource: Send + Sync {
     async fn ack(&self, program: &str, up_to: ActivityId) -> Result<()>;
     /// Would `program` (with these `reads`) get this activity?
     async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool>;
+    /// Is this entry about `object` from before a mark? Then what was queued about it stays home.
+    async fn withdrawn(&self, object: ObjectId, entry: ActivityId) -> Result<bool>;
     /// Live feed of every activity the hub logs (for subscriptions; filter with `visible_to`).
     fn changes(&self) -> broadcast::Receiver<Activity>;
 }

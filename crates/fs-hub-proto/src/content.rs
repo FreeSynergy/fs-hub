@@ -1,24 +1,35 @@
 //! Content comparison shared by hub and client.
 //!
-//! Pattern: Specification — a small predicate ("is this the same object apart from what the store owns
-//! and what a reader never gets?") used by both sides to keep applying idempotent.
+//! Pattern: Specification — small predicates ("is this the same object apart from ...?") used by both
+//! sides to keep applying idempotent.
 
 use chrono::{DateTime, Utc};
 use fs_store::StoredObject;
 
-use crate::blank_for_delivery;
+use crate::blank_object;
 
-/// Identical apart from the store-owned timestamps, the (immutable) original and the fields blanked at
-/// delivery: a reader's copy lacks those, and that is no change.
+fn without_store_fields(o: &StoredObject) -> StoredObject {
+    let mut o = o.clone();
+    let epoch = DateTime::<Utc>::default();
+    o.envelope.updated = epoch;
+    o.envelope.published = epoch;
+    o.original = None;
+    o
+}
+
+/// Identical apart from what the store owns and what a reader never gets: a reader's copy lacks those,
+/// and that is no change.
 pub fn same_content(a: &StoredObject, b: &StoredObject) -> bool {
     let strip = |o: &StoredObject| {
-        let mut o = o.clone();
-        let epoch = DateTime::<Utc>::default();
-        o.envelope.updated = epoch;
-        o.envelope.published = epoch;
-        blank_for_delivery(&mut o.envelope);
-        o.original = None;
+        let mut o = without_store_fields(o);
+        blank_object(&mut o);
         o
     };
     strip(a) == strip(b)
+}
+
+/// Identical apart from what the store owns. For the program that wrote the object: what it changes in
+/// the fields a reader never gets is a change.
+pub fn same_as_written(a: &StoredObject, b: &StoredObject) -> bool {
+    without_store_fields(a) == without_store_fields(b)
 }

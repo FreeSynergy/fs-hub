@@ -4,6 +4,7 @@
 
 mod activity;
 mod apply;
+mod apply_mark;
 mod collector;
 mod cursors;
 mod hub;
@@ -15,13 +16,14 @@ mod proposals;
 mod registry;
 mod state;
 mod visibility;
+mod way_out;
 
 pub use activity::{ActivitySink, ActivitySource};
 pub use collector::ObjectCollector;
 pub use cursors::{CursorRepository, StoreCursors};
 pub use hub::HubCore;
 pub use log_source::LogSource;
-pub use marked::{MarkedRemovals, Reach, StoreMarked};
+pub use marked::{MarkedRemovals, Reach, Removal, StoreMarked};
 pub use originals::{OriginalTimes, StoreOriginals};
 pub use presence::{LiveGuard, Presence};
 pub use proposals::{ProposalEngine, SharedIdentity};

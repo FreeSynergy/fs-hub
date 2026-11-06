@@ -19,6 +19,9 @@ use super::registry::ProgramRegistry;
 use super::state::now_ms;
 use crate::Result;
 
+const SAVE_EVERY_MS: i64 = 1000;
+const MARKED_PROBLEM_TYPE: &str = "https://freesynergy.net/problems/marked-sensitive";
+
 /// [`ActivitySink`] that stores pushed objects in the hub's store.
 pub struct ObjectCollector {
     pub(super) registry: Arc<dyn ProgramRegistry>,
@@ -76,6 +79,17 @@ impl ActivitySink for ObjectCollector {
                 Ok(Applied::Same) => out.skipped += 1,
                 Ok(Applied::Withheld) => out.withheld += 1,
                 Ok(Applied::TooLarge(bytes)) => out.problems.push(too_large(&a, bytes)),
+                Ok(Applied::Marked) => out.problems.push(Problem::new(
+                    MARKED_PROBLEM_TYPE,
+                    "Taken off the hub",
+                    format!(
+                        "{} {}: object {} was marked sensitive; only the program that marked it can bring it back",
+                        a.kind.as_str(),
+                        a.id,
+                        a.object
+                    ),
+                    409,
+                )),
                 Err(e) if e.is_transient() => {
                     // What was applied stays applied; this entry comes again.
                     st.save().await?;
@@ -93,9 +107,15 @@ impl ActivitySink for ObjectCollector {
             }
             st.last_accepted = Some(a.id);
         }
-        st.last_seen_ms = now_ms();
+        let now = now_ms();
+        st.last_seen_ms = now;
         out.last_accepted = st.last_accepted;
-        st.save().await?;
+        // Not on each call: a crash only costs repeated work, applying is idempotent.
+        if now - st.saved_ms >= SAVE_EVERY_MS {
+            self.originals.settle().await?;
+            st.saved_ms = now;
+            st.save().await?;
+        }
         Ok(out)
     }
 }

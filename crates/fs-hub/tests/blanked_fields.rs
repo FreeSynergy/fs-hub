@@ -152,8 +152,11 @@ impl change_listener::Server for Heard {
         self: Rc<Self>,
         params: change_listener::ChangeParams,
     ) -> Result<(), capnp::Error> {
-        if let change::Which::Created(e) = params.get()?.get_change()?.which()? {
-            let _ = self.0.send(audience_of(e?));
+        match params.get()?.get_change()?.which()? {
+            change::Which::Created(e) | change::Which::Updated(e) => {
+                let _ = self.0.send(audience_of(e?));
+            }
+            change::Which::Deleted(_) => {}
         }
         Ok(())
     }
@@ -172,13 +175,19 @@ async fn live_notices_hold_none_of_them() {
 
             let store = env.store("owner").await;
             let owner = session(&env, notes_manifest("owner")).await;
-            store.put(note_of_ada("n", 8), "ada").await.unwrap();
+            let o = note_of_ada("n", 8);
+            let mut updated = o.clone();
+            store.put(o, "ada").await.unwrap();
+            updated.content["text"] = serde_json::json!("v2");
+            store.put(updated, "ada").await.unwrap();
             owner.sync_once(store.as_ref()).await.unwrap();
-            let got = tokio::time::timeout(Duration::from_secs(5), heard.recv())
-                .await
-                .unwrap()
-                .unwrap();
-            assert_eq!(got, Vec::<String>::new());
+            for which in ["created", "updated"] {
+                let got = tokio::time::timeout(Duration::from_secs(5), heard.recv())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(got, Vec::<String>::new(), "{which}");
+            }
         })
         .await;
 }

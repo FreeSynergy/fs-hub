@@ -1,15 +1,18 @@
 //! Applying one pushed activity to the hub's store.
 //!
 //! Pattern: Command (executed) — each activity is a change (create/update/delete/log-only) with
-//! before/after images; the rules (sensitive, declared `writes`, size, identical content) live here.
-//! Sensitive comes first: such an object is withheld at any size, and an older copy still goes. The
-//! payload is taken, not copied: it may hold two large images.
+//! before/after images; the rules (sensitive, declared `writes`, size, marks, who decides which field,
+//! identical content) live here, the removal of marked objects in `apply_mark.rs`. The payload is taken,
+//! not copied: it may hold two large images.
 
-use fs_hub_proto::{MAX_OBJECT_BYTES, Manifest, json_len, keep_held_back, same_content};
-use fs_store::{Activity, ActivityFilter, ActivityId, ChangeSet, ObjectId};
+use fs_hub_proto::{
+    MAX_OBJECT_BYTES, Manifest, json_len, keep_held_back, same_as_written, same_content,
+};
+use fs_store::{Activity, ActivityId, ChangeSet, ObjectId};
 
 use super::collector::ObjectCollector;
-use super::marked::Reach;
+use super::marked::Removal;
+use super::proposals::origin_of;
 use crate::Result;
 
 /// What applying an activity did.
@@ -22,6 +25,8 @@ pub(super) enum Applied {
     Withheld,
     /// Above the limit, with this many bytes.
     TooLarge(usize),
+    /// The object was marked by another program, or this is not the way back.
+    Marked,
 }
 
 impl ObjectCollector {
@@ -49,39 +54,34 @@ impl ObjectCollector {
             .as_ref()
             .is_some_and(|o| !o.envelope.sensitive.is_empty());
         let Some(mut obj) = cs.after else {
-            if self.objects.get(a.object).await?.is_none() {
-                self.finish_removal(a.object).await?;
-                return Ok(Applied::Same);
-            }
-            if was_sensitive {
-                self.remove_marked(a.object, program).await?;
-                return Ok(Applied::DoneSensitive);
-            }
-            let logged = self.objects.delete(a.object, program).await?;
-            return Ok(Applied::Done(logged.id));
+            return self.apply_delete(manifest, a.object, was_sensitive).await;
         };
+        let id = obj.envelope.id;
         if !obj.envelope.sensitive.is_empty() {
-            // Never keep a copy; and drop an older, then-unmarked copy.
-            if self.objects.get(obj.envelope.id).await?.is_some() {
-                self.remove_marked(obj.envelope.id, program).await?;
-            } else {
-                self.finish_removal(obj.envelope.id).await?;
-            }
-            return Ok(Applied::Withheld);
+            return self.apply_mark(manifest, id).await;
         }
         if !manifest.writes.contains(&obj.envelope.object_type) {
             return Ok(Applied::Withheld);
         }
-        if let Some(have) = self.objects.get(obj.envelope.id).await? {
-            if same_content(&have, &obj) {
-                return Ok(Applied::Same); // e.g. a program re-pushing what it pulled
-            }
-            // From a reader these fields are blank: that must not overwrite what the hub holds.
-            keep_held_back(&have.envelope, &mut obj.envelope);
-        }
         let bytes = json_len(&obj);
         if bytes > MAX_OBJECT_BYTES {
             return Ok(Applied::TooLarge(bytes));
+        }
+        if !self.may_come_back(program, id, was_sensitive).await? {
+            return Ok(Applied::Marked);
+        }
+        if let Some(have) = self.objects.get(id).await? {
+            // The program that first wrote it decides the fields a reader never gets. From any other
+            // they are blank, and that must not overwrite what the hub holds.
+            let same = if origin_of(self.log.as_ref(), id).await? == program {
+                same_as_written(&have, &obj)
+            } else {
+                keep_held_back(&have, &mut obj);
+                same_content(&have, &obj)
+            };
+            if same {
+                return Ok(Applied::Same); // e.g. a program re-pushing what it pulled
+            }
         }
         let logged = self.objects.put(obj, program).await?.id;
         Ok(if was_sensitive {
@@ -91,48 +91,51 @@ impl ObjectCollector {
         })
     }
 
-    /// Remove the older copy of a marked object. The list comes first: from then on nothing of it goes
-    /// out, whatever happens next.
-    async fn remove_marked(&self, object: ObjectId, program: &str) -> Result<()> {
-        self.marked.record(object, Reach::Open).await?;
-        let logged = self.objects.delete(object, program).await?;
-        self.marked.record(object, Reach::UpTo(logged.id)).await?;
-        self.forget_times(object).await
+    /// While a mark holds, only the program that set it can bring the object back, with a change that
+    /// says it was sensitive. A stale copy from anywhere else must not bring the secret back.
+    async fn may_come_back(
+        &self,
+        program: &str,
+        id: ObjectId,
+        was_sensitive: bool,
+    ) -> Result<bool> {
+        let Some(removal) = self.marked.find(id).await? else {
+            return Ok(true);
+        };
+        if !removal.holds {
+            return Ok(true);
+        }
+        if removal.by != program || !was_sensitive {
+            return Ok(false);
+        }
+        let lifted = Removal {
+            holds: false,
+            ..removal
+        };
+        self.marked.record(id, &lifted).await?;
+        Ok(true)
     }
 
-    /// A crash after the delete left the removal open: this push came again, and the copy is gone.
-    async fn finish_removal(&self, object: ObjectId) -> Result<()> {
-        if self.marked.find(object).await? == Some(Reach::Open) {
-            let last = self.entries_about(object).await?.pop();
-            if let Some(last) = last {
-                self.marked.record(object, Reach::UpTo(last)).await?;
+    async fn apply_delete(
+        &self,
+        manifest: &Manifest,
+        object: ObjectId,
+        was_sensitive: bool,
+    ) -> Result<Applied> {
+        let Some(have) = self.objects.get(object).await? else {
+            if was_sensitive {
+                self.mark_without_copy(manifest, object).await?;
             }
-            self.forget_times(object).await?;
+            return Ok(Applied::Same);
+        };
+        if !manifest.writes.contains(&have.envelope.object_type) {
+            return Ok(Applied::Withheld);
         }
-        Ok(())
-    }
-
-    async fn forget_times(&self, object: ObjectId) -> Result<()> {
-        for entry in self.entries_about(object).await? {
-            self.originals.forget(entry).await?;
+        if was_sensitive {
+            self.remove_marked(&manifest.program, object).await?;
+            return Ok(Applied::DoneSensitive);
         }
-        Ok(())
-    }
-
-    /// The ids of the log entries about `object`, reading one at a time: each may be large.
-    async fn entries_about(&self, object: ObjectId) -> Result<Vec<ActivityId>> {
-        let mut ids = Vec::new();
-        loop {
-            let filter = ActivityFilter {
-                after: ids.last().copied(),
-                object: Some(object),
-                limit: Some(1),
-                ..Default::default()
-            };
-            match self.log.activities(&filter).await?.first() {
-                Some(entry) => ids.push(entry.id),
-                None => return Ok(ids),
-            }
-        }
+        let logged = self.objects.delete(object, &manifest.program).await?;
+        Ok(Applied::Done(logged.id))
     }
 }

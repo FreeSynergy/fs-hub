@@ -20,7 +20,8 @@ pub(super) async fn run(
         let _ = tx.send(core.clone());
     }
     tracing::info!("hub listening on {}", config.socket.display());
-    server::serve(core, listener, config.socket.clone(), shutdown).await;
+    server::serve(core.clone(), listener, config.socket.clone(), shutdown).await;
+    core.flush().await?;
     let _ = std::fs::remove_file(&config.socket);
     Ok(())
 }

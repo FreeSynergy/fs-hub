@@ -20,6 +20,9 @@ pub struct ProgramState {
     pub pull_cursor: Option<ActivityId>,
     /// Last contact, unix milliseconds.
     pub last_seen_ms: i64,
+    /// When this was last persisted, unix milliseconds; not itself persisted.
+    #[serde(skip)]
+    pub saved_ms: i64,
 }
 
 /// Now, unix milliseconds.

@@ -8,13 +8,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fs_hub_proto::{
-    MAX_ACTIVITY_BYTES, PageBudget, PullBatch, PullNote, ScanSize, activity_weight,
-    blank_for_delivery, blank_images, sensitive_stub_envelope,
-};
+use fs_hub_proto::{PageBudget, PullBatch, ScanSize, activity_weight};
 use fs_store::traits::{ActivityLog, ChangeFeed};
-use fs_store::{Activity, ActivityFilter, ActivityId, Envelope};
-use serde_json::Value;
+use fs_store::{Activity, ActivityFilter, ActivityId, ObjectId};
 use tokio::sync::broadcast;
 
 use super::activity::ActivitySource;
@@ -28,11 +24,11 @@ use crate::Result;
 /// [`ActivitySource`] over the hub's log.
 pub struct LogSource {
     registry: Arc<dyn ProgramRegistry>,
-    log: Arc<dyn ActivityLog>,
+    pub(super) log: Arc<dyn ActivityLog>,
     feed: Arc<dyn ChangeFeed>,
-    visibility: Visibility,
-    originals: Arc<dyn OriginalTimes>,
-    marked: Arc<dyn MarkedRemovals>,
+    pub(super) visibility: Visibility,
+    pub(super) originals: Arc<dyn OriginalTimes>,
+    pub(super) marked: Arc<dyn MarkedRemovals>,
 }
 
 impl LogSource {
@@ -53,48 +49,6 @@ impl LogSource {
             originals,
             marked,
         }
-    }
-
-    /// Make an entry ready to go out: everything leaving the hub passes here.
-    async fn prepare(
-        &self,
-        a: &mut Activity,
-        mut envelope: Envelope,
-        envelope_only: bool,
-    ) -> Result<PullNote> {
-        if self.marked.covers(a.object, a.id).await? {
-            // From before the mark: that it happened, nothing of what it held.
-            a.payload = Value::Null;
-            return Ok(PullNote {
-                envelope: sensitive_stub_envelope(a.object),
-                original_at: None,
-            });
-        }
-        blank_for_delivery(&mut envelope);
-        if envelope_only {
-            a.payload = Value::Null;
-        } else if a.kind.changes_state() {
-            blank_images(&mut a.payload);
-        }
-        if activity_weight(a, Some(&envelope)) > MAX_ACTIVITY_BYTES {
-            // Older than the limits. The reader only needs `after`, if that fits.
-            tracing::warn!("{} {} is too large for a message", a.kind.as_str(), a.id);
-            if let Some(before) = a.payload.get_mut("before") {
-                *before = Value::Null;
-            }
-            if activity_weight(a, Some(&envelope)) > MAX_ACTIVITY_BYTES {
-                a.payload = Value::Null;
-            }
-        }
-        let original_at = if envelope.sensitive.is_empty() {
-            self.originals.find(a.id).await?
-        } else {
-            None // whatever is on file (ADR 0029)
-        };
-        Ok(PullNote {
-            envelope,
-            original_at,
-        })
     }
 }
 
@@ -133,19 +87,19 @@ impl ActivitySource for LogSource {
             for mut a in batch {
                 cursor = Some(a.id);
                 scan.saw(&a.payload);
-                let visible = self
-                    .visibility
-                    .visible_envelope(program, &reads, &a)
-                    .await?;
-                let Some(envelope) = visible else {
+                let Some(way) = self.way_out(program, &reads, &a).await? else {
                     out.last = Some(a.id);
                     continue;
                 };
+                if self.superseded(program, &a).await? {
+                    out.last = Some(a.id);
+                    continue;
+                }
                 if out.activities.len() >= limit {
                     out.more = true;
                     break 'scan;
                 }
-                let note = self.prepare(&mut a, envelope, envelope_only).await?;
+                let note = self.prepare(&mut a, way, envelope_only).await?;
                 if !budget.admits(activity_weight(&a, Some(&note.envelope))) {
                     out.more = true;
                     break 'scan;
@@ -171,7 +125,12 @@ impl ActivitySource for LogSource {
     }
 
     async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool> {
-        self.visibility.allows(program, reads, a).await
+        Ok(self.way_out(program, reads, a).await?.is_some())
+    }
+
+    async fn withdrawn(&self, object: ObjectId, entry: ActivityId) -> Result<bool> {
+        let removal = self.marked.find(object).await?;
+        Ok(removal.is_some_and(|r| r.covers(entry)))
     }
 
     fn changes(&self) -> broadcast::Receiver<Activity> {

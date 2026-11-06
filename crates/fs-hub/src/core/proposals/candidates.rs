@@ -67,7 +67,7 @@ pub(super) async fn by_identity_key(
 }
 
 /// The program that first wrote the object into the hub.
-async fn origin_of(log: &dyn ActivityLog, id: ObjectId) -> Result<String> {
+pub(crate) async fn origin_of(log: &dyn ActivityLog, id: ObjectId) -> Result<String> {
     let first = log
         .activities(&ActivityFilter {
             object: Some(id),

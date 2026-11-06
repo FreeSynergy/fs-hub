@@ -101,12 +101,13 @@ async fn a_sensitive_object_says_neither_even_if_a_program_claims_them() {
             let reader = register(&env.socket(), &notes_manifest("reader")).await;
             let answer = reader.pull(None, 0, false).await;
             let kinds: Vec<_> = answer.activities.iter().map(|a| a.kind.as_str()).collect();
-            assert_eq!(kinds, ["Create", "Delete"]);
+            assert_eq!(kinds, ["Delete"], "nothing from before the mark");
             for entry in &answer.activities {
                 assert_eq!(entry.original_at_ms, None, "{entry:?}");
                 assert_eq!(entry.original_actor, "");
                 assert_eq!(entry.payload_len, 0, "no old content: {}", entry.payload);
                 assert_ne!(entry.name, "was plain", "not its old name either");
+                assert_eq!((entry.at_ms, entry.actor.as_str()), (0, ""));
             }
         })
         .await;
@@ -137,8 +138,36 @@ async fn deleting_what_was_sensitive_in_the_program_says_no_time() {
 
             let reader = register(&env.socket(), &notes_manifest("reader")).await;
             let answer = reader.pull(None, 0, false).await;
-            assert_eq!(answer.activities[1].kind, "Delete");
-            assert_eq!(answer.activities[1].original_at_ms, None);
+            assert_eq!(answer.activities.len(), 1, "nothing from before the mark");
+            assert_eq!(answer.activities[0].kind, "Delete");
+            assert_eq!(answer.activities[0].original_at_ms, None);
+        })
+        .await;
+}
+
+/// Taking a mark off says no time either, whatever a program claims: the change comes from a state the
+/// hub never saw.
+#[tokio::test]
+async fn a_change_out_of_a_sensitive_state_says_no_time() {
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let env = Env::start();
+            let store = env.store("raw").await;
+            let o = note("n", 8);
+            let mut secret = o.clone();
+            secret.envelope.sensitive = vec!["pd:Health".into()];
+            store.put(secret, "a person").await.unwrap();
+            store.put(o, "a person").await.unwrap();
+            let log = store.activities(&ActivityFilter::default()).await.unwrap();
+            let writer = register(&env.socket(), &notes_manifest("raw")).await;
+            let outcome = writer
+                .push_claiming(&log[1..], "", Some(1_800_000_000_000))
+                .await;
+            assert_eq!(outcome.accepted, 1);
+            let reader = register(&env.socket(), &notes_manifest("reader")).await;
+            let answer = reader.pull(None, 0, false).await;
+            assert_eq!(answer.activities.len(), 1);
+            assert_eq!(answer.activities[0].original_at_ms, None);
         })
         .await;
 }

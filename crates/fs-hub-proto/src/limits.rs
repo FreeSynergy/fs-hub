@@ -97,31 +97,35 @@ pub fn is_transient(e: &fs_store::Error) -> bool {
 }
 
 /// How many log entries to read at once. Each may hold two large images, and what does not fit is read
-/// again next time: the store cannot filter by size, so the first read takes one, small entries are
-/// read a few at a time, and after a large entry one at a time.
-#[derive(Debug, Default)]
+/// again next time; the store cannot filter by size. So this looks at the entries just read: the window
+/// grows by one with each small entry up to a few, and a large one shrinks it to one again.
+#[derive(Debug)]
 pub struct ScanSize {
-    seen: bool,
-    large: bool,
+    window: usize,
+}
+
+impl Default for ScanSize {
+    fn default() -> Self {
+        Self { window: 1 }
+    }
 }
 
 impl ScanSize {
-    const SMALL_ENTRIES: usize = 8;
+    const MOST_ENTRIES: usize = 16;
     const LARGE_ENTRY_BYTES: usize = 256 << 10;
 
     /// Entries to read next.
     pub fn next(&self) -> usize {
-        if self.seen && !self.large {
-            Self::SMALL_ENTRIES
-        } else {
-            1
-        }
+        self.window
     }
 
     /// An entry of this payload was read.
     pub fn saw(&mut self, payload: &serde_json::Value) {
-        self.seen = true;
-        self.large = self.large || json_len(payload) >= Self::LARGE_ENTRY_BYTES;
+        self.window = if json_len(payload) >= Self::LARGE_ENTRY_BYTES {
+            1
+        } else {
+            (self.window + 1).min(Self::MOST_ENTRIES)
+        };
     }
 }
 
@@ -149,22 +153,4 @@ impl PageBudget {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_budget_always_takes_the_first_and_cuts_after_that() {
-        let mut page = PageBudget::default();
-        assert!(
-            page.admits(usize::MAX),
-            "even too large: paging must advance"
-        );
-        assert!(!page.admits(1));
-        page.reset();
-        assert!(page.admits(MAX_PAGE_BYTES));
-        assert!(!page.admits(1));
-        page.reset();
-        assert!(page.admits(MAX_PAGE_BYTES - 1));
-        assert!(page.admits(1));
-    }
-}
+mod tests;

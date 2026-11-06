@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use fs_hub_proto::{Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, Pushed};
 use fs_store::traits::{ActivityLog, ChangeFeed, ObjectQuery, ObjectRepository};
-use fs_store::{Activity, ActivityId, Store, TursoStore};
+use fs_store::{Activity, ActivityId, ObjectId, Store, StoredObject, TursoStore};
 use tokio::sync::broadcast;
 
 use super::activity::{ActivitySink, ActivitySource};
@@ -34,7 +34,7 @@ pub struct HubCore {
 }
 
 impl HubCore {
-    /// Open (or create) the hub's databases in `dir`: `objects.db` and `state.db`.
+    /// Open (or create) the hub's databases in `dir`: `objects.db`, `state.db`, `times.db`, `marks.db`.
     pub async fn open(dir: &Path) -> Result<Arc<Self>> {
         Self::open_with(dir, Arc::new(SharedIdentity)).await
     }
@@ -44,8 +44,10 @@ impl HubCore {
         std::fs::create_dir_all(dir)?;
         let objects = Arc::new(TursoStore::open(dir.join("objects.db")).await?);
         let state = Arc::new(TursoStore::open(dir.join("state.db")).await?);
-        let originals: Arc<dyn OriginalTimes> = Arc::new(StoreOriginals::new(state.clone()));
-        let marked: Arc<dyn MarkedRemovals> = Arc::new(StoreMarked::new(state.clone()));
+        let times = Arc::new(TursoStore::open(dir.join("times.db")).await?);
+        let marks = Arc::new(TursoStore::open(dir.join("marks.db")).await?);
+        let originals: Arc<dyn OriginalTimes> = Arc::new(StoreOriginals::new(times).await?);
+        let marked: Arc<dyn MarkedRemovals> = Arc::new(StoreMarked::new(marks).await?);
         let registry: Arc<dyn ProgramRegistry> =
             Arc::new(StoredRegistry::open(Arc::new(StoreCursors::new(state).await?)).await?);
         let repo: Arc<dyn ObjectRepository> = objects.clone();
@@ -124,10 +126,32 @@ impl HubCore {
         self.source.changes()
     }
 
-    /// Same-person candidates across programs (see [`ProposalEngine`]).
-    pub async fn proposals(&self) -> Result<Vec<Proposal>> {
+    /// Is this entry about `object` from before a mark?
+    pub async fn withdrawn(&self, object: ObjectId, entry: ActivityId) -> Result<bool> {
+        self.source.withdrawn(object, entry).await
+    }
+
+    /// Persist what is not saved on each call, at shutdown.
+    pub async fn flush(&self) -> Result<()> {
+        self.registry.flush().await
+    }
+
+    /// Same-person candidates across programs (see [`ProposalEngine`]), of types the caller declared
+    /// in `reads`: a proposal holds names and e-mail addresses.
+    pub async fn proposals(&self, reads: &[String]) -> Result<Vec<Proposal>> {
         let query: &dyn ObjectQuery = self.objects.as_ref();
         let log: &dyn ActivityLog = self.objects.as_ref();
-        self.engine.propose(query, log).await
+        let mut visible = Vec::new();
+        for proposal in self.engine.propose(query, log).await? {
+            let a = ObjectRepository::get(self.objects.as_ref(), proposal.a).await?;
+            let b = ObjectRepository::get(self.objects.as_ref(), proposal.b).await?;
+            let readable = |o: Option<StoredObject>| {
+                o.is_some_and(|o| reads.contains(&o.envelope.object_type))
+            };
+            if readable(a) && readable(b) {
+                visible.push(proposal);
+            }
+        }
+        Ok(visible)
     }
 }

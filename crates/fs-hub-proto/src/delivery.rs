@@ -1,11 +1,13 @@
 //! What a reader does not get of an object, and what a sensitive object says at all.
 //!
 //! PROVISIONAL (strategy session, 2026-11-06): the cores put the person's IRI into `attributedTo` and
-//! `to`, so these fields would tell every reader who did it, past the empty `originalActor`. Until the
-//! person can release them, they are blank at delivery. [`held_back`] is the one place that names
-//! them, and [`blank_for_delivery`] the one place that blanks them: a later release per person and per
-//! program decides here. The hub and the owner keep the values: a reader that pushes a blanked object
-//! back must not overwrite them ([`keep_held_back`]), and it is not a change ([`crate::same_content`]).
+//! `to`, and an rfc822 original or an index key can name people as well, so these would tell every
+//! reader who did it, past the empty `originalActor`. Until the person can release them, a reader gets
+//! neither these fields nor the original nor such index keys. [`held_back`] and
+//! [`DELIVERED_INDEX_KEYS`] are the only lists of them, and [`blank_for_delivery`] with
+//! [`blank_object`] the only place that blanks them: a later release per person and per program decides
+//! here. The hub and the owner keep the values: a reader that pushes a blanked object back overwrites
+//! nothing ([`keep_held_back`]), and it is no change ([`crate::same_content`]).
 //!
 //! Pattern: Specification — one rule, used by every way out of the hub.
 
@@ -20,7 +22,47 @@ pub const SENSITIVE_MARKER: &str = "sensitive";
 const STUB_TYPE: &str = "Object";
 const STUB_NAME: &str = "withheld";
 
-/// The fields a reader does not get. The only list of them.
+/// Index keys a reader gets: what it needs to find and handle an object. Anything else does not go, so
+/// a new key naming people stays home until somebody decides otherwise (`person`, `member`, `holder`,
+/// `invitee`, `subject`, `participant_email`, ...). `email` and `phone` stay: on a profile they say what
+/// its content says, which is the object itself.
+pub const DELIVERED_INDEX_KEYS: &[&str] = &[
+    "activity",
+    "backend",
+    "directory",
+    "email",
+    "folder",
+    "group",
+    "key",
+    "kind",
+    "label",
+    "link",
+    "name_exact",
+    "name_sort",
+    "need",
+    "object",
+    "parent",
+    "path",
+    "phone",
+    "progress",
+    "relationship",
+    "removed",
+    "reservation",
+    "resource",
+    "right",
+    "role",
+    "role_id",
+    "scope",
+    "stage",
+    "state",
+    "submitted",
+    "survey",
+    "task",
+    "trashed",
+    "uid",
+];
+
+/// The envelope fields a reader does not get. The only list of them.
 fn held_back(e: &mut Envelope) -> (&mut Option<String>, [&mut Vec<String>; 5]) {
     (
         &mut e.attributed_to,
@@ -34,7 +76,11 @@ fn held_back(e: &mut Envelope) -> (&mut Option<String>, [&mut Vec<String>; 5]) {
     )
 }
 
-/// Blank what a reader does not get. Everything leaving the hub goes through this.
+fn is_delivered(index_key: &str) -> bool {
+    DELIVERED_INDEX_KEYS.contains(&index_key)
+}
+
+/// Blank what a reader does not get of an envelope. Everything leaving the hub goes through this.
 pub fn blank_for_delivery(e: &mut Envelope) {
     let (attributed_to, lists) = held_back(e);
     *attributed_to = None;
@@ -43,14 +89,19 @@ pub fn blank_for_delivery(e: &mut Envelope) {
     }
 }
 
-/// `into` came from a reader or from the hub: every held-back field it has blank takes the value in
-/// `from`. So a blanked object going round overwrites nothing. A field its owner really emptied looks
-/// the same and keeps the old value here: nobody gets it, and it cannot be told apart until the wire
-/// says which fields were blanked.
-pub fn keep_held_back(from: &Envelope, into: &mut Envelope) {
-    let mut from = from.clone();
-    let (from_attributed, from_lists) = held_back(&mut from);
-    let (attributed, lists) = held_back(into);
+/// [`blank_for_delivery`], and what a reader does not get of the rest of an object.
+pub fn blank_object(o: &mut StoredObject) {
+    blank_for_delivery(&mut o.envelope);
+    o.original = None;
+    o.index.retain(|key, _| is_delivered(key));
+}
+
+/// `into` came from a reader, or from the hub to a reader: what it has blank takes the value in `from`.
+/// So a blanked object going round overwrites nothing. The original is the store's: it keeps it.
+pub fn keep_held_back(from: &StoredObject, into: &mut StoredObject) {
+    let mut envelope = from.envelope.clone();
+    let (from_attributed, from_lists) = held_back(&mut envelope);
+    let (attributed, lists) = held_back(&mut into.envelope);
     if attributed.is_none() {
         *attributed = from_attributed.take();
     }
@@ -59,21 +110,47 @@ pub fn keep_held_back(from: &Envelope, into: &mut Envelope) {
             std::mem::swap(list, from_list);
         }
     }
+    for (key, values) in &from.index {
+        if !is_delivered(key) {
+            into.index
+                .entry(key.clone())
+                .or_insert_with(|| values.clone());
+        }
+    }
 }
 
-/// [`blank_for_delivery`] on the envelopes inside before/after images, in place: the content is not
-/// touched and not copied. An envelope that cannot be read does not go out.
+/// [`blank_object`] on the before/after images, in place: the content is neither touched nor copied.
+/// What cannot be read does not go out: the payload is then empty, as for one too large.
 pub fn blank_images(payload: &mut Value) {
-    for image in ["before", "after"] {
-        let Some(slot) = payload.get_mut(image).and_then(|i| i.get_mut("envelope")) else {
+    for name in ["before", "after"] {
+        let Some(image) = payload.get_mut(name).filter(|i| i.is_object()) else {
             continue;
         };
-        let blanked = Envelope::deserialize(&*slot).ok().and_then(|mut e| {
-            blank_for_delivery(&mut e);
-            serde_json::to_value(e).ok()
-        });
-        *slot = blanked.unwrap_or(Value::Null);
+        if blank_image(image).is_none() {
+            *payload = Value::Null;
+            return;
+        }
     }
+}
+
+fn blank_image(image: &mut Value) -> Option<()> {
+    let envelope = Envelope::deserialize(image.get("envelope")?).ok()?;
+    let mut shell = StoredObject::new(envelope, "", Value::Null);
+    if let Some(index) = image.get("index") {
+        shell.index = Deserialize::deserialize(index).ok()?;
+    }
+    blank_object(&mut shell);
+    image["envelope"] = serde_json::to_value(&shell.envelope).ok()?;
+    image["index"] = serde_json::to_value(&shell.index).ok()?;
+    image.as_object_mut()?.remove("original");
+    Some(())
+}
+
+/// What a reader learns of an object marked later: that it is gone. Not that it was marked.
+pub fn plain_delete_envelope(id: ObjectId) -> Envelope {
+    let mut e = sensitive_stub_envelope(id);
+    e.sensitive.clear();
+    e
 }
 
 /// All a sensitive object says of itself: its id and that it is sensitive. No type, name, time,
@@ -93,44 +170,4 @@ pub fn sensitive_stub(id: ObjectId) -> StoredObject {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn full() -> Envelope {
-        let mut e = Envelope::new("Note", "n");
-        e.attributed_to = Some("https://example.org/ada".into());
-        for list in [
-            &mut e.to,
-            &mut e.cc,
-            &mut e.bto,
-            &mut e.bcc,
-            &mut e.audience,
-        ] {
-            list.push("https://example.org/ada".into());
-        }
-        e
-    }
-
-    #[test]
-    fn blanking_leaves_no_trace_and_keeping_brings_all_back() {
-        let e = full();
-        let mut blanked = e.clone();
-        blank_for_delivery(&mut blanked);
-        assert!(!format!("{blanked:?}").contains("ada"));
-        keep_held_back(&e, &mut blanked);
-        assert_eq!(blanked, e);
-    }
-
-    #[test]
-    fn blanking_images_keeps_the_content() {
-        let object = StoredObject::new(full(), "text/plain", serde_json::json!({"ada": 1}));
-        let mut payload = serde_json::json!({"before": object, "after": null});
-        blank_images(&mut payload);
-        let back: fs_store::ChangeSet = serde_json::from_value(payload).unwrap();
-        let before = back.before.unwrap();
-        assert_eq!(before.envelope.attributed_to, None);
-        assert_eq!(before.envelope.to.len(), 0);
-        assert_eq!(before.content["ada"], 1);
-        assert!(back.after.is_none());
-    }
-}
+mod tests;

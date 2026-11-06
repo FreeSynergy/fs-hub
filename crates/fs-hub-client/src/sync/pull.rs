@@ -19,15 +19,14 @@ pub(super) async fn pull_all(
     report: &mut SyncReport,
 ) -> Result<()> {
     loop {
-        let mut batch = hub.pull(None, PULL_BATCH).await?;
+        let batch = hub.pull(None, PULL_BATCH).await?;
         report.pulled += batch.activities.len();
         let (last, more) = (batch.last, batch.more);
         let empty = batch.activities.is_empty();
         let mut applied_up_to = None;
         for a in batch.activities {
             let (id, label) = (a.id, format!("{} {}", a.kind.as_str(), a.id));
-            let note = batch.notes.remove(&id);
-            match apply(store, a, note.as_ref()).await {
+            match apply(store, a).await {
                 Ok(changed) => report.applied += usize::from(changed),
                 Err(Error::Store(e)) if is_transient(&e) => {
                     if let Some(done) = applied_up_to {

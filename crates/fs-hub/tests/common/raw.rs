@@ -28,6 +28,7 @@ pub struct Seen {
     pub original_at_ms: Option<i64>,
     pub original_actor: String,
     pub actor: String,
+    pub at_ms: i64,
     pub object_type: String,
     pub name: String,
 }
@@ -79,6 +80,12 @@ impl Raw {
         read_push_outcome(response.get().unwrap()).unwrap()
     }
 
+    pub async fn ack(&self, up_to: ActivityId) -> Result<(), capnp::Error> {
+        let mut request = self.session.ack_request();
+        write_activity_id(request.get().init_up_to(), Some(up_to));
+        request.send().promise.await.map(|_| ())
+    }
+
     pub async fn pull(&self, since: Option<ActivityId>, limit: u32, envelope_only: bool) -> Answer {
         let mut request = self.session.pull_request();
         {
@@ -115,6 +122,7 @@ fn seen(a: fs_hub_proto::hub_capnp::activity::Reader<'_>) -> Seen {
             .then(|| a.get_original_at().unwrap().get_unix_millis()),
         original_actor: text(a.get_original_actor().unwrap()),
         actor: text(a.get_actor().unwrap()),
+        at_ms: a.get_at().unwrap().get_unix_millis(),
         object_type: text(envelope.get_type().unwrap()),
         name: text(envelope.get_name().unwrap()),
     }

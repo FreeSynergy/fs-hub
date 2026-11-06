@@ -2,6 +2,7 @@
 //!
 //! Pattern: Adapter — wire request in, [`HubCore`] call, wire response out.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -13,9 +14,20 @@ use super::errors::rpc_err;
 use super::session_service::SessionImpl;
 use crate::HubCore;
 
-/// The bootstrap capability every connection gets.
+/// The bootstrap capability, one per connection: the contract has `proposals` here, without a session,
+/// so this is where the connection's caller is known from its `register`.
 pub(super) struct HubImpl {
-    pub core: Arc<HubCore>,
+    core: Arc<HubCore>,
+    caller_reads: RefCell<Vec<String>>,
+}
+
+impl HubImpl {
+    pub(super) fn new(core: Arc<HubCore>) -> Self {
+        Self {
+            core,
+            caller_reads: RefCell::new(Vec::new()),
+        }
+    }
 }
 
 impl hub::Server for HubImpl {
@@ -26,7 +38,9 @@ impl hub::Server for HubImpl {
     ) -> Result<(), capnp::Error> {
         let manifest = read_manifest(params.get()?.get_manifest()?).map_err(rpc_err)?;
         let program = manifest.program.clone();
+        let reads = manifest.reads.clone();
         let guard = self.core.register(manifest).await.map_err(rpc_err)?;
+        *self.caller_reads.borrow_mut() = reads;
         let session = SessionImpl::new(self.core.clone(), program, guard);
         let mut r = results.get();
         r.set_session(new_client(session));
@@ -54,7 +68,8 @@ impl hub::Server for HubImpl {
         _: hub::ProposalsParams,
         mut results: hub::ProposalsResults,
     ) -> Result<(), capnp::Error> {
-        let list = self.core.proposals().await.map_err(rpc_err)?;
+        let reads = self.caller_reads.borrow().clone();
+        let list = self.core.proposals(&reads).await.map_err(rpc_err)?;
         let mut out = results
             .get()
             .init_proposals(u32::try_from(list.len()).map_err(rpc_err)?);

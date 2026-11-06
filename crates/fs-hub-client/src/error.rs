@@ -23,6 +23,14 @@ pub enum Error {
     /// I/O failure.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    /// A sync stopped on `cause`; `report` says what it did until then, also what was already passed.
+    #[error("sync stopped: {cause}")]
+    Stopped {
+        /// Why it stopped.
+        cause: Box<Error>,
+        /// What it did until then.
+        report: Box<crate::SyncReport>,
+    },
     /// The hub answered something the protocol does not allow.
     #[error("protocol: {0}")]
     Protocol(String),

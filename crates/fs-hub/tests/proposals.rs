@@ -71,3 +71,36 @@ async fn proposals_skip_sensitive_data_and_same_program() {
         .unwrap();
     assert!(in_pm.iter().any(|o| o.envelope.name == "Grace Hopper"));
 }
+
+/// Names and e-mail addresses only for a program that declared it reads such objects.
+#[tokio::test]
+async fn proposals_follow_the_callers_reads() {
+    let env = Env::start();
+    let (a_store, b_store) = (env.store("a").await, env.store("b").await);
+    let a = session(&env, contacts_manifest("a")).await;
+    let b = session(&env, contacts_manifest("b")).await;
+    PeopleRepo::new(a_store.clone(), "a")
+        .create(person("Grace", "grace@example.org"))
+        .await
+        .unwrap();
+    PeopleRepo::new(b_store.clone(), "b")
+        .create(person("Grace H", "grace@example.org"))
+        .await
+        .unwrap();
+    a.sync_once(a_store.as_ref()).await.unwrap();
+    b.sync_once(b_store.as_ref()).await.unwrap();
+    assert_eq!(a.proposals().await.unwrap().len(), 1);
+
+    let nothing = session(&env, fs_hub_client::Manifest::new("nothing", "0.1.0")).await;
+    assert_eq!(
+        nothing.proposals().await.unwrap().len(),
+        0,
+        "declared nothing"
+    );
+    let notes = session(&env, common::notes_manifest("notes")).await;
+    assert_eq!(
+        notes.proposals().await.unwrap().len(),
+        0,
+        "reads other types"
+    );
+}

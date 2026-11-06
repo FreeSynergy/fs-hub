@@ -38,6 +38,7 @@ pub(crate) fn plan(mut activities: Vec<Activity>) -> PushPlan {
             Ok(a) => a,
             Err(problem) => {
                 out.refused.problems.push(*problem);
+                out.refused.refused += 1;
                 out.refused.last_accepted = out.refused.last_accepted.max(Some(id));
                 continue;
             }
@@ -85,6 +86,21 @@ fn fit(mut a: Activity) -> Result<Activity, Box<Problem>> {
         a.at = DateTime::<Utc>::UNIX_EPOCH;
     }
     Ok(a)
+}
+
+/// All images of `a` as stubs, whatever they say: the object is marked now, so its past stays home too.
+pub(crate) fn stub_images(mut a: Activity) -> Activity {
+    let stub = sensitive_stub(a.object);
+    for name in ["before", "after"] {
+        if a.payload.get(name).is_some_and(|i| !i.is_null()) {
+            // A stub is made of plain strings, and this cannot fail; never send the image if it does.
+            a.payload[name] = serde_json::to_value(&stub).unwrap_or(serde_json::json!({
+                "envelope": {"id": a.object, "sensitive": [fs_hub_proto::SENSITIVE_MARKER]}
+            }));
+        }
+    }
+    a.at = DateTime::<Utc>::UNIX_EPOCH;
+    a
 }
 
 fn stub_image(id: ObjectId) -> Result<serde_json::Value, Box<Problem>> {

@@ -55,6 +55,8 @@ pub trait ProgramRegistry: Send + Sync {
     async fn programs(&self) -> Vec<ProgramInfo>;
     /// Exclusive access to a program's state (serialises its pushes).
     async fn lock(&self, program: &str) -> Result<ProgramLock>;
+    /// Persist every state, at shutdown: a push does not save each time.
+    async fn flush(&self) -> Result<()>;
 }
 
 type Shared = Arc<AsyncMutex<ProgramState>>;
@@ -126,6 +128,7 @@ impl ProgramRegistry for StoredRegistry {
                 last_accepted: None,
                 pull_cursor: None,
                 last_seen_ms: now_ms(),
+                saved_ms: 0,
             };
             self.cursors.save(&st).await?;
             self.programs
@@ -169,5 +172,13 @@ impl ProgramRegistry for StoredRegistry {
             guard,
             cursors: self.cursors.clone(),
         })
+    }
+
+    async fn flush(&self) -> Result<()> {
+        let all: Vec<Shared> = self.programs.lock().unwrap().values().cloned().collect();
+        for shared in all {
+            self.cursors.save(&*shared.lock().await).await?;
+        }
+        Ok(())
     }
 }

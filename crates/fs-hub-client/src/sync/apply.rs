@@ -2,9 +2,10 @@
 //!
 //! Pattern: Command (executed) — create/update/delete/log-only with the actor written as
 //! `hub:<program>`; identical content is skipped (idempotent). What the hub blanks at delivery stays
-//! as this store has it: an update from a reader must not take the owner's values away.
+//! as this store has it: an update from a reader must not take the owner's values away. And what is
+//! marked sensitive here stays as it is: a mark is this program's own, nothing pulled undoes it.
 
-use fs_hub_proto::{PullNote, keep_held_back, same_content};
+use fs_hub_proto::{keep_held_back, same_content};
 use fs_store::{Activity, ActivityKind, ChangeSet, ObjectId, Store};
 
 use crate::{Error, Result};
@@ -13,15 +14,10 @@ use crate::{Error, Result};
 pub(super) const HUB_ACTOR_PREFIX: &str = "hub:";
 
 /// Apply one pulled activity to the program's store. Returns whether that changed the store.
-pub(super) async fn apply(store: &dyn Store, a: Activity, note: Option<&PullNote>) -> Result<bool> {
+pub(super) async fn apply(store: &dyn Store, a: Activity) -> Result<bool> {
     let actor = format!("{HUB_ACTOR_PREFIX}{}", a.actor);
-    if a.payload.is_null() {
-        if a.kind == ActivityKind::Delete {
-            return delete(store, a.object, &actor).await;
-        }
-        if note.is_some_and(|n| !n.envelope.sensitive.is_empty()) {
-            return Ok(false); // marked sensitive later: nothing of it comes, and nothing is wrong
-        }
+    if a.payload.is_null() && a.kind == ActivityKind::Delete {
+        return delete(store, a.object, &actor).await;
     }
     if !a.kind.changes_state() {
         if store.get(a.object).await?.is_none() {
@@ -41,17 +37,20 @@ pub(super) async fn apply(store: &dyn Store, a: Activity, note: Option<&PullNote
         return delete(store, object, &actor).await;
     };
     if let Some(have) = store.get(obj.envelope.id).await? {
-        if same_content(&have, &obj) {
+        if !have.envelope.sensitive.is_empty() || same_content(&have, &obj) {
             return Ok(false);
         }
-        keep_held_back(&have.envelope, &mut obj.envelope);
+        keep_held_back(&have, &mut obj);
     }
     store.put(obj, &actor).await?;
     Ok(true)
 }
 
 async fn delete(store: &dyn Store, object: ObjectId, actor: &str) -> Result<bool> {
-    if store.get(object).await?.is_none() {
+    let Some(have) = store.get(object).await? else {
+        return Ok(false);
+    };
+    if !have.envelope.sensitive.is_empty() {
         return Ok(false);
     }
     store.delete(object, actor).await?;
