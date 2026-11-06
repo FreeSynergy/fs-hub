@@ -37,7 +37,7 @@ pub trait ActivitySource: Send + Sync {
     /// The program applied everything up to `up_to`; remember it (cursors only move forward).
     async fn ack(&self, program: &str, up_to: ActivityId) -> Result<()>;
     /// Would `program` (with these `reads`) get this activity?
-    async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> bool;
+    async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool>;
     /// Live feed of every activity the hub logs (for subscriptions; filter with `visible_to`).
     fn changes(&self) -> broadcast::Receiver<Activity>;
 }

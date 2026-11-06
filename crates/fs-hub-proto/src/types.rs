@@ -144,11 +144,11 @@ pub struct PullNote {
 #[derive(Clone, Debug, Default)]
 pub struct PullBatch {
     /// Activities of other programs. A `Null` payload on a state-changing kind means the content did
-    /// not come: asked for with `pull_envelopes`, or too large for any message.
+    /// not come: too large for any message, or the object was marked sensitive later.
     pub activities: Vec<fs_store::Activity>,
     /// The note of each activity, by its id.
     pub notes: std::collections::BTreeMap<ActivityId, PullNote>,
-    /// The hub scanned up to here; acknowledge with `ack`.
+    /// The hub scanned up to here; acknowledge with `ack` once the content is applied.
     pub last: Option<ActivityId>,
     /// More are waiting. An answer can hold fewer than asked for: it is also cut by size.
     pub more: bool,

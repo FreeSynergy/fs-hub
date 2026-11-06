@@ -9,6 +9,8 @@ use fs_hub_proto::summary_of;
 use fs_store::traits::ObjectRepository;
 use fs_store::{Activity, Envelope};
 
+use crate::Result;
+
 /// The visibility rule of `pull` and `subscribe`.
 pub struct Visibility {
     objects: Arc<dyn ObjectRepository>,
@@ -22,36 +24,30 @@ impl Visibility {
 
     /// Summary of the object an activity is about (state-changing: from the images; log-only: the
     /// stored object).
-    pub async fn envelope_of(&self, a: &Activity) -> Option<Envelope> {
+    pub async fn envelope_of(&self, a: &Activity) -> Result<Option<Envelope>> {
         if a.kind.changes_state() {
-            summary_of(a)
-        } else {
-            self.objects
-                .get(a.object)
-                .await
-                .ok()
-                .flatten()
-                .map(|o| o.envelope)
+            return Ok(summary_of(a));
         }
+        Ok(self.objects.get(a.object).await?.map(|o| o.envelope))
     }
 
-    /// The summary, if `program` (with these `reads`) gets this activity.
+    /// The summary, if `program` (with these `reads`) gets this activity. A store error is not "no":
+    /// a cursor would move past the entry.
     pub async fn visible_envelope(
         &self,
         program: &str,
         reads: &[String],
         a: &Activity,
-    ) -> Option<Envelope> {
+    ) -> Result<Option<Envelope>> {
         if a.actor == program {
-            return None;
+            return Ok(None);
         }
-        self.envelope_of(a)
-            .await
-            .filter(|e| reads.contains(&e.object_type))
+        let envelope = self.envelope_of(a).await?;
+        Ok(envelope.filter(|e| reads.contains(&e.object_type)))
     }
 
     /// Would `program` (with these `reads`) get this activity?
-    pub async fn allows(&self, program: &str, reads: &[String], a: &Activity) -> bool {
-        self.visible_envelope(program, reads, a).await.is_some()
+    pub async fn allows(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool> {
+        Ok(self.visible_envelope(program, reads, a).await?.is_some())
     }
 }

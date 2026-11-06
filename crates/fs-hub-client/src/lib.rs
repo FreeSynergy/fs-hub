@@ -26,6 +26,7 @@
 
 mod command;
 mod connect;
+mod envelopes;
 mod error;
 mod install;
 mod push_plan;
@@ -35,6 +36,7 @@ mod sync;
 mod worker;
 
 pub use connect::{connect, connect_at};
+pub use envelopes::{EnvelopeBatch, EnvelopeCursor, EnvelopeEntry};
 pub use error::{Error, Result};
 pub use fs_hub_proto::{
     ChangeNotice, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, Manifest, Problem, ProgramInfo,

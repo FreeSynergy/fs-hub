@@ -12,28 +12,21 @@ use fs_interfaces::rpc::{read_envelope, write_envelope};
 use fs_store::{Activity, ActivityId, ActivityKind, Envelope, ObjectId};
 
 use super::ids::{from_ms, ms, read_activity_id, read_uuid, write_activity_id, write_uuid};
+use super::images::images_of;
 use crate::hub_capnp as hub;
 use crate::{Error, PullNote, Pushed, Result};
-
-/// The object envelope an activity is about (after image, else before image), if it carries one.
-pub fn summary_of(a: &Activity) -> Option<Envelope> {
-    if !a.kind.changes_state() {
-        return None;
-    }
-    let cs = a.change_set().ok()?;
-    cs.after.or(cs.before).map(|o| o.envelope)
-}
 
 fn write_activity(
     mut b: hub::activity::Builder<'_>,
     a: &Activity,
+    actor: &str,
     summary: Option<&Envelope>,
     original_at: Option<fs_store::Timestamp>,
 ) -> Result<()> {
     write_activity_id(b.reborrow().init_id(), Some(a.id));
     b.set_kind(a.kind.as_str());
     write_uuid(b.reborrow().init_object(), Some(a.object.as_uuid()));
-    b.set_actor(&a.actor);
+    b.set_actor(actor);
     b.reborrow().init_at().set_unix_millis(ms(a.at));
     b.set_has_target(a.target.is_some());
     write_activity_id(b.reborrow().init_target(), a.target);
@@ -89,19 +82,22 @@ fn read_original_at(r: hub::activity::Reader<'_>) -> Result<Option<fs_store::Tim
 }
 
 /// Log entries of a program -> wire, each with the time the program did it. A sensitive object never
-/// says when (ADR 0029).
+/// says when (ADR 0029), also when only the before image is sensitive. `actor` stays blank: who did
+/// it stays in the program's log.
 pub fn write_pushed_list(
     mut list: capnp::struct_list::Builder<'_, hub::activity::Owned>,
     items: &[Activity],
 ) -> Result<()> {
     for (i, a) in items.iter().enumerate() {
-        let summary = summary_of(a);
-        let sensitive = summary.as_ref().is_some_and(|e| !e.sensitive.is_empty());
-        let original_at = (!sensitive).then_some(a.at);
+        let (before, after) = images_of(a).unwrap_or_default();
+        let is_sensitive =
+            |e: &Option<Envelope>| e.as_ref().is_some_and(|e| !e.sensitive.is_empty());
+        let original_at = (!is_sensitive(&before) && !is_sensitive(&after)).then_some(a.at);
         write_activity(
             list.reborrow().get(i as u32),
             a,
-            summary.as_ref(),
+            "",
+            after.or(before).as_ref(),
             original_at,
         )?;
     }
@@ -133,6 +129,7 @@ pub fn write_pulled_list(
         write_activity(
             list.reborrow().get(i as u32),
             a,
+            &a.actor,
             note.map(|n| &n.envelope),
             note.and_then(|n| n.original_at),
         )?;

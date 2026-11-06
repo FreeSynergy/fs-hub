@@ -22,6 +22,9 @@ pub struct Seen {
     pub id: ActivityId,
     pub kind: String,
     pub payload_len: usize,
+    pub payload: String,
+    /// The typed envelope's audience fields, as they came.
+    pub audience: Vec<String>,
     pub original_at_ms: Option<i64>,
     pub original_actor: String,
     pub actor: String,
@@ -105,6 +108,8 @@ fn seen(a: fs_hub_proto::hub_capnp::activity::Reader<'_>) -> Seen {
         id: read_activity_id(a.get_id().unwrap()).unwrap().unwrap(),
         kind: text(a.get_kind().unwrap()),
         payload_len: a.get_payload().unwrap().len(),
+        payload: String::from_utf8_lossy(a.get_payload().unwrap()).into_owned(),
+        audience: audience_of(envelope),
         original_at_ms: a
             .has_original_at()
             .then(|| a.get_original_at().unwrap().get_unix_millis()),
@@ -113,4 +118,20 @@ fn seen(a: fs_hub_proto::hub_capnp::activity::Reader<'_>) -> Seen {
         object_type: text(envelope.get_type().unwrap()),
         name: text(envelope.get_name().unwrap()),
     }
+}
+
+/// Every field that may name a person, as one list; empty if none is set.
+pub fn audience_of(e: fs_hub_proto::common_capnp::envelope::Reader<'_>) -> Vec<String> {
+    let mut out = vec![text(e.get_attributed_to().unwrap())];
+    for list in [
+        e.get_to().unwrap(),
+        e.get_cc().unwrap(),
+        e.get_bto().unwrap(),
+        e.get_bcc().unwrap(),
+        e.get_audience().unwrap(),
+    ] {
+        out.extend(list.iter().map(|t| text(t.unwrap())));
+    }
+    out.retain(|s| !s.is_empty());
+    out
 }

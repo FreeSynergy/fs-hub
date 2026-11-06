@@ -1,46 +1,59 @@
 //! Applying one pulled activity to the program's store.
 //!
 //! Pattern: Command (executed) — create/update/delete/log-only with the actor written as
-//! `hub:<program>`; identical content is skipped (idempotent).
+//! `hub:<program>`; identical content is skipped (idempotent). What the hub blanks at delivery stays
+//! as this store has it: an update from a reader must not take the owner's values away.
 
-use fs_hub_proto::same_content;
-use fs_store::{Activity, ActivityId, Store};
+use fs_hub_proto::{PullNote, keep_held_back, same_content};
+use fs_store::{Activity, ActivityKind, ChangeSet, ObjectId, Store};
 
 use crate::{Error, Result};
 
-/// Apply one pulled activity to the program's store. Returns the ids of the log entries it created.
-pub(super) async fn apply(store: &dyn Store, a: &Activity) -> Result<Vec<ActivityId>> {
-    let actor = format!("hub:{}", a.actor);
+/// Log entries written by [`apply`] start with this. They came from the hub, so they never go back.
+pub(super) const HUB_ACTOR_PREFIX: &str = "hub:";
+
+/// Apply one pulled activity to the program's store. Returns whether that changed the store.
+pub(super) async fn apply(store: &dyn Store, a: Activity, note: Option<&PullNote>) -> Result<bool> {
+    let actor = format!("{HUB_ACTOR_PREFIX}{}", a.actor);
+    if a.payload.is_null() {
+        if a.kind == ActivityKind::Delete {
+            return delete(store, a.object, &actor).await;
+        }
+        if note.is_some_and(|n| !n.envelope.sensitive.is_empty()) {
+            return Ok(false); // marked sensitive later: nothing of it comes, and nothing is wrong
+        }
+    }
     if !a.kind.changes_state() {
         if store.get(a.object).await?.is_none() {
-            return Ok(vec![]);
+            return Ok(false);
         }
-        let act = store
-            .log(a.kind, a.object, &actor, a.payload.clone())
-            .await?;
-        return Ok(vec![act.id]);
+        store.log(a.kind, a.object, &actor, a.payload).await?;
+        return Ok(true);
     }
     if a.payload.is_null() {
         return Err(Error::Protocol(
             "the hub held back the content: too large for a message".into(),
         ));
     }
-    let cs = a.change_set().map_err(Error::Store)?;
-    match cs.after {
-        Some(obj) => {
-            if let Some(have) = store.get(obj.envelope.id).await?
-                && same_content(&have, &obj)
-            {
-                return Ok(vec![]);
-            }
-            Ok(vec![store.put(obj, &actor).await?.id])
+    let object = a.object;
+    let cs: ChangeSet = serde_json::from_value(a.payload).map_err(fs_store::Error::from)?;
+    let Some(mut obj) = cs.after else {
+        return delete(store, object, &actor).await;
+    };
+    if let Some(have) = store.get(obj.envelope.id).await? {
+        if same_content(&have, &obj) {
+            return Ok(false);
         }
-        None => {
-            if store.get(a.object).await?.is_some() {
-                Ok(vec![store.delete(a.object, &actor).await?.id])
-            } else {
-                Ok(vec![])
-            }
-        }
+        keep_held_back(&have.envelope, &mut obj.envelope);
     }
+    store.put(obj, &actor).await?;
+    Ok(true)
+}
+
+async fn delete(store: &dyn Store, object: ObjectId, actor: &str) -> Result<bool> {
+    if store.get(object).await?.is_none() {
+        return Ok(false);
+    }
+    store.delete(object, actor).await?;
+    Ok(true)
 }

@@ -6,7 +6,7 @@ mod common;
 use std::time::Duration;
 
 use common::raw::register;
-use common::{Env, config, note, notes_manifest, session};
+use common::{Env, config, note, note_of_ada, notes_manifest, session};
 use fs_hub::Daemon;
 use fs_store::ActivityFilter;
 use fs_store::traits::{ActivityLog, ObjectRepository};
@@ -50,7 +50,7 @@ async fn original_actor_reaches_nobody_even_if_a_program_sends_it() {
         .run_until(async {
             let env = Env::start();
             let store = env.store("raw").await;
-            store.put(note("n", 8), "a person").await.unwrap();
+            store.put(note_of_ada("n", 8), "a person").await.unwrap();
             let log = store.activities(&ActivityFilter::default()).await.unwrap();
             let writer = register(&env.socket(), &notes_manifest("raw")).await;
             assert_eq!(writer.push(&log, "ada@example.org").await.accepted, 1);
@@ -61,6 +61,8 @@ async fn original_actor_reaches_nobody_even_if_a_program_sends_it() {
             assert_eq!(seen.original_actor, "");
             assert_eq!(seen.actor, "raw");
             assert!(seen.original_at_ms.is_some());
+            assert_eq!(seen.audience, Vec::<String>::new(), "the typed envelope");
+            assert!(!seen.payload.contains("ada"), "{}", seen.payload);
             let held = env.hub().core().store();
             let log = held.activities(&ActivityFilter::default()).await.unwrap();
             assert!(
@@ -77,7 +79,8 @@ async fn a_sensitive_object_says_neither_even_if_a_program_claims_them() {
         .run_until(async {
             let env = Env::start();
             let store = env.store("raw").await;
-            let plain = note("was plain", 8);
+            let mut plain = note("was plain", 8);
+            plain.content["text"] = serde_json::json!("old secret");
             let mut marked = plain.clone();
             let id = plain.envelope.id;
             store.put(plain, "a person").await.unwrap();
@@ -99,9 +102,12 @@ async fn a_sensitive_object_says_neither_even_if_a_program_claims_them() {
             let answer = reader.pull(None, 0, false).await;
             let kinds: Vec<_> = answer.activities.iter().map(|a| a.kind.as_str()).collect();
             assert_eq!(kinds, ["Create", "Delete"]);
-            let removal = &answer.activities[1];
-            assert_eq!(removal.original_at_ms, None);
-            assert_eq!(removal.original_actor, "");
+            for entry in &answer.activities {
+                assert_eq!(entry.original_at_ms, None, "{entry:?}");
+                assert_eq!(entry.original_actor, "");
+                assert_eq!(entry.payload_len, 0, "no old content: {}", entry.payload);
+                assert_ne!(entry.name, "was plain", "not its old name either");
+            }
         })
         .await;
 }

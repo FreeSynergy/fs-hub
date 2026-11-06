@@ -16,6 +16,7 @@ use super::activity::{ActivitySink, ActivitySource};
 use super::collector::ObjectCollector;
 use super::cursors::StoreCursors;
 use super::log_source::LogSource;
+use super::marked::{MarkedRemovals, StoreMarked};
 use super::originals::{OriginalTimes, StoreOriginals};
 use super::presence::LiveGuard;
 use super::proposals::{ProposalEngine, SharedIdentity};
@@ -44,6 +45,7 @@ impl HubCore {
         let objects = Arc::new(TursoStore::open(dir.join("objects.db")).await?);
         let state = Arc::new(TursoStore::open(dir.join("state.db")).await?);
         let originals: Arc<dyn OriginalTimes> = Arc::new(StoreOriginals::new(state.clone()));
+        let marked: Arc<dyn MarkedRemovals> = Arc::new(StoreMarked::new(state.clone()));
         let registry: Arc<dyn ProgramRegistry> =
             Arc::new(StoredRegistry::open(Arc::new(StoreCursors::new(state).await?)).await?);
         let repo: Arc<dyn ObjectRepository> = objects.clone();
@@ -55,6 +57,7 @@ impl HubCore {
                 repo.clone(),
                 log.clone(),
                 originals.clone(),
+                marked.clone(),
             )),
             source: Arc::new(LogSource::new(
                 registry.clone(),
@@ -62,6 +65,7 @@ impl HubCore {
                 feed,
                 Visibility::new(repo),
                 originals,
+                marked,
             )),
             registry,
             engine,
@@ -111,7 +115,7 @@ impl HubCore {
     }
 
     /// Would `program` (with these `reads`) get this activity?
-    pub async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> bool {
+    pub async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool> {
         self.source.visible_to(program, reads, a).await
     }
 

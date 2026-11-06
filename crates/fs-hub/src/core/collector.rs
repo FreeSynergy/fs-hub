@@ -2,7 +2,8 @@
 //!
 //! Pattern: Command executor — `push` walks a program's activities in order and applies each one
 //! to the hub's object store (`apply.rs`), idempotent by the program's `last_accepted` cursor. One
-//! bad entry is a problem, and the cursor moves past it.
+//! bad entry is a problem, and the cursor moves past it. A failure that may pass is not the entry's
+//! fault: the push stops there and the cursor stays in front of it.
 
 use std::sync::Arc;
 
@@ -12,6 +13,7 @@ use fs_store::traits::{ActivityLog, ObjectRepository};
 
 use super::activity::ActivitySink;
 use super::apply::Applied;
+use super::marked::MarkedRemovals;
 use super::originals::OriginalTimes;
 use super::registry::ProgramRegistry;
 use super::state::now_ms;
@@ -22,7 +24,8 @@ pub struct ObjectCollector {
     pub(super) registry: Arc<dyn ProgramRegistry>,
     pub(super) objects: Arc<dyn ObjectRepository>,
     pub(super) log: Arc<dyn ActivityLog>,
-    originals: Arc<dyn OriginalTimes>,
+    pub(super) originals: Arc<dyn OriginalTimes>,
+    pub(super) marked: Arc<dyn MarkedRemovals>,
 }
 
 impl ObjectCollector {
@@ -32,12 +35,14 @@ impl ObjectCollector {
         objects: Arc<dyn ObjectRepository>,
         log: Arc<dyn ActivityLog>,
         originals: Arc<dyn OriginalTimes>,
+        marked: Arc<dyn MarkedRemovals>,
     ) -> Self {
         Self {
             registry,
             objects,
             log,
             originals,
+            marked,
         }
     }
 }
@@ -49,7 +54,7 @@ impl ActivitySink for ObjectCollector {
         activities.sort_by_key(|p| p.activity.id);
         let mut out = PushOutcome::default();
         for Pushed {
-            activity: a,
+            activity: mut a,
             original_at,
         } in activities
         {
@@ -57,7 +62,7 @@ impl ActivitySink for ObjectCollector {
                 out.skipped += 1;
                 continue;
             }
-            match self.apply_one(&st.manifest, &a).await {
+            match self.apply_one(&st.manifest, &mut a).await {
                 Ok(Applied::Done(logged)) => {
                     out.accepted += 1;
                     if let Some(at) = original_at {
@@ -71,6 +76,11 @@ impl ActivitySink for ObjectCollector {
                 Ok(Applied::Same) => out.skipped += 1,
                 Ok(Applied::Withheld) => out.withheld += 1,
                 Ok(Applied::TooLarge(bytes)) => out.problems.push(too_large(&a, bytes)),
+                Err(e) if e.is_transient() => {
+                    // What was applied stays applied; this entry comes again.
+                    st.save().await?;
+                    return Err(e);
+                }
                 Err(e) => {
                     // One bad entry must not block the log behind it: report and move on.
                     out.problems.push(Problem::new(

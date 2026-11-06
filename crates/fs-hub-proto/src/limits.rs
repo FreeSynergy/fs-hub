@@ -91,6 +91,40 @@ pub fn too_large(a: &Activity, bytes: usize) -> Problem {
     )
 }
 
+/// A failure that may pass: nothing is wrong with the entry, so no cursor may move past it.
+pub fn is_transient(e: &fs_store::Error) -> bool {
+    matches!(e, fs_store::Error::Backend(_) | fs_store::Error::Key(_))
+}
+
+/// How many log entries to read at once. Each may hold two large images, and what does not fit is read
+/// again next time: the store cannot filter by size, so the first read takes one, small entries are
+/// read a few at a time, and after a large entry one at a time.
+#[derive(Debug, Default)]
+pub struct ScanSize {
+    seen: bool,
+    large: bool,
+}
+
+impl ScanSize {
+    const SMALL_ENTRIES: usize = 8;
+    const LARGE_ENTRY_BYTES: usize = 256 << 10;
+
+    /// Entries to read next.
+    pub fn next(&self) -> usize {
+        if self.seen && !self.large {
+            Self::SMALL_ENTRIES
+        } else {
+            1
+        }
+    }
+
+    /// An entry of this payload was read.
+    pub fn saw(&mut self, payload: &serde_json::Value) {
+        self.seen = true;
+        self.large = self.large || json_len(payload) >= Self::LARGE_ENTRY_BYTES;
+    }
+}
+
 /// How much of one answer or request is used.
 #[derive(Debug, Default)]
 pub struct PageBudget {

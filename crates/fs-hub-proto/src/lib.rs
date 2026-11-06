@@ -24,6 +24,7 @@ pub use fs_interfaces::{common_capnp, hub_capnp};
 mod content;
 mod contract;
 mod convert;
+mod delivery;
 mod error;
 mod limits;
 mod types;
@@ -31,9 +32,13 @@ mod types;
 pub use content::same_content;
 pub use contract::{CONTRACT_VERSION, default_socket_path};
 pub use convert::*;
+pub use delivery::{
+    SENSITIVE_MARKER, blank_for_delivery, blank_images, keep_held_back, sensitive_stub,
+    sensitive_stub_envelope,
+};
 pub use error::{Error, Result};
 pub use limits::{
-    MAX_ACTIVITY_BYTES, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, PageBudget, activity_weight,
-    json_len, reader_options, too_large,
+    MAX_ACTIVITY_BYTES, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, PageBudget, ScanSize,
+    activity_weight, is_transient, json_len, reader_options, too_large,
 };
 pub use types::*;

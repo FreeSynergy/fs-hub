@@ -11,6 +11,7 @@
 use std::sync::Arc;
 
 use fs_hub_proto::common_capnp::{change_listener, subscription};
+use fs_hub_proto::{blank_for_delivery, images_of};
 use fs_interfaces::rpc::{ChangeSender, Notice, change_channel, forward};
 use fs_store::{Activity, ActivityKind};
 use tokio::sync::broadcast::{self, error::RecvError};
@@ -64,8 +65,13 @@ async fn watch(
     loop {
         match changes.recv().await {
             Ok(a) => {
-                if !core.visible_to(&program, &reads, &a).await {
-                    continue;
+                match core.visible_to(&program, &reads, &a).await {
+                    Ok(true) => {}
+                    Ok(false) => continue,
+                    Err(e) => {
+                        sender.send(Event::End(format!("{} {}: {e}", a.kind.as_str(), a.id)));
+                        return;
+                    }
                 }
                 match notice_of(&a) {
                     Ok(Some(notice)) => sender.send(Event::Tell(Box::new(notice))),
@@ -87,17 +93,21 @@ async fn watch(
     }
 }
 
-/// The notice of an activity. A log-only activity changes no object: nothing to tell.
+/// The notice of an activity, blanked like everything leaving the hub. A log-only activity changes no
+/// object: nothing to tell.
 fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
     if !a.kind.changes_state() {
         return Ok(None);
     }
-    let cs = a
-        .change_set()
-        .map_err(|e| format!("{} {}: {e}", a.kind.as_str(), a.id))?;
-    Ok(Some(match (a.kind, cs.after) {
-        (ActivityKind::Create, Some(o)) => Notice::Created(o.envelope),
-        (_, Some(o)) => Notice::Updated(o.envelope),
+    let (_, after) =
+        images_of(a).ok_or_else(|| format!("{} {}: no images", a.kind.as_str(), a.id))?;
+    let blanked = |mut e| {
+        blank_for_delivery(&mut e);
+        e
+    };
+    Ok(Some(match (a.kind, after) {
+        (ActivityKind::Create, Some(e)) => Notice::Created(blanked(e)),
+        (_, Some(e)) => Notice::Updated(blanked(e)),
         (_, None) => Notice::Deleted(a.object),
     }))
 }

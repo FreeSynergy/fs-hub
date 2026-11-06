@@ -8,22 +8,22 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fs_hub_proto::{MAX_ACTIVITY_BYTES, PageBudget, PullBatch, PullNote, activity_weight};
+use fs_hub_proto::{
+    MAX_ACTIVITY_BYTES, PageBudget, PullBatch, PullNote, ScanSize, activity_weight,
+    blank_for_delivery, blank_images, sensitive_stub_envelope,
+};
 use fs_store::traits::{ActivityLog, ChangeFeed};
-use fs_store::{Activity, ActivityFilter, ActivityId, Envelope, Timestamp};
+use fs_store::{Activity, ActivityFilter, ActivityId, Envelope};
 use serde_json::Value;
 use tokio::sync::broadcast;
 
 use super::activity::ActivitySource;
+use super::marked::MarkedRemovals;
 use super::originals::OriginalTimes;
 use super::registry::ProgramRegistry;
 use super::state::now_ms;
 use super::visibility::Visibility;
 use crate::Result;
-
-/// Read from the log at once. Small, because every entry may hold two large images, and what does
-/// not fit the page is read again for the next one.
-const PULL_SCAN_BATCH: usize = 32;
 
 /// [`ActivitySource`] over the hub's log.
 pub struct LogSource {
@@ -32,6 +32,7 @@ pub struct LogSource {
     feed: Arc<dyn ChangeFeed>,
     visibility: Visibility,
     originals: Arc<dyn OriginalTimes>,
+    marked: Arc<dyn MarkedRemovals>,
 }
 
 impl LogSource {
@@ -42,6 +43,7 @@ impl LogSource {
         feed: Arc<dyn ChangeFeed>,
         visibility: Visibility,
         originals: Arc<dyn OriginalTimes>,
+        marked: Arc<dyn MarkedRemovals>,
     ) -> Self {
         Self {
             registry,
@@ -49,21 +51,50 @@ impl LogSource {
             feed,
             visibility,
             originals,
+            marked,
         }
     }
 
-    /// When the program did it. Never for a sensitive object, whatever is on file (ADR 0029).
-    async fn original_at(&self, id: ActivityId, envelope: &Envelope) -> Option<Timestamp> {
-        if !envelope.sensitive.is_empty() {
-            return None;
+    /// Make an entry ready to go out: everything leaving the hub passes here.
+    async fn prepare(
+        &self,
+        a: &mut Activity,
+        mut envelope: Envelope,
+        envelope_only: bool,
+    ) -> Result<PullNote> {
+        if self.marked.covers(a.object, a.id).await? {
+            // From before the mark: that it happened, nothing of what it held.
+            a.payload = Value::Null;
+            return Ok(PullNote {
+                envelope: sensitive_stub_envelope(a.object),
+                original_at: None,
+            });
         }
-        match self.originals.find(id).await {
-            Ok(at) => at,
-            Err(e) => {
-                tracing::warn!("original time of {id} not read: {e}");
-                None
+        blank_for_delivery(&mut envelope);
+        if envelope_only {
+            a.payload = Value::Null;
+        } else if a.kind.changes_state() {
+            blank_images(&mut a.payload);
+        }
+        if activity_weight(a, Some(&envelope)) > MAX_ACTIVITY_BYTES {
+            // Older than the limits. The reader only needs `after`, if that fits.
+            tracing::warn!("{} {} is too large for a message", a.kind.as_str(), a.id);
+            if let Some(before) = a.payload.get_mut("before") {
+                *before = Value::Null;
+            }
+            if activity_weight(a, Some(&envelope)) > MAX_ACTIVITY_BYTES {
+                a.payload = Value::Null;
             }
         }
+        let original_at = if envelope.sensitive.is_empty() {
+            self.originals.find(a.id).await?
+        } else {
+            None // whatever is on file (ADR 0029)
+        };
+        Ok(PullNote {
+            envelope,
+            original_at,
+        })
     }
 }
 
@@ -87,20 +118,26 @@ impl ActivitySource for LogSource {
             ..PullBatch::default()
         };
         let mut budget = PageBudget::default();
+        let mut scan = ScanSize::default();
         'scan: loop {
+            let asked = scan.next();
             let batch = self
                 .log
                 .activities(&ActivityFilter {
                     after: cursor,
-                    limit: Some(PULL_SCAN_BATCH),
+                    limit: Some(asked),
                     ..Default::default()
                 })
                 .await?;
             let n = batch.len();
             for mut a in batch {
                 cursor = Some(a.id);
-                let Some(envelope) = self.visibility.visible_envelope(program, &reads, &a).await
-                else {
+                scan.saw(&a.payload);
+                let visible = self
+                    .visibility
+                    .visible_envelope(program, &reads, &a)
+                    .await?;
+                let Some(envelope) = visible else {
                     out.last = Some(a.id);
                     continue;
                 };
@@ -108,32 +145,16 @@ impl ActivitySource for LogSource {
                     out.more = true;
                     break 'scan;
                 }
-                if envelope_only {
-                    a.payload = Value::Null;
-                }
-                let mut weight = activity_weight(&a, Some(&envelope));
-                if weight > MAX_ACTIVITY_BYTES {
-                    // Older than the limits: no message holds it. Its reader moves on and sees why.
-                    tracing::warn!("{} {} held back: {weight} bytes", a.kind.as_str(), a.id);
-                    a.payload = Value::Null;
-                    weight = activity_weight(&a, Some(&envelope));
-                }
-                if !budget.admits(weight) {
+                let note = self.prepare(&mut a, envelope, envelope_only).await?;
+                if !budget.admits(activity_weight(&a, Some(&note.envelope))) {
                     out.more = true;
                     break 'scan;
                 }
-                let original_at = self.original_at(a.id, &envelope).await;
                 out.last = Some(a.id);
-                out.notes.insert(
-                    a.id,
-                    PullNote {
-                        envelope,
-                        original_at,
-                    },
-                );
+                out.notes.insert(a.id, note);
                 out.activities.push(a);
             }
-            if n < PULL_SCAN_BATCH {
+            if n < asked {
                 break;
             }
         }
@@ -149,7 +170,7 @@ impl ActivitySource for LogSource {
         Ok(())
     }
 
-    async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> bool {
+    async fn visible_to(&self, program: &str, reads: &[String], a: &Activity) -> Result<bool> {
         self.visibility.allows(program, reads, a).await
     }
 

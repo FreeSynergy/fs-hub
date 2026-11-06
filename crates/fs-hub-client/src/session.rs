@@ -6,6 +6,7 @@ use fs_store::{Activity, ActivityId};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::command::Cmd;
+use crate::envelopes::{EnvelopeBatch, EnvelopeCursor};
 use crate::push_plan;
 use crate::{ChangeNotice, Error, ProgramInfo, Proposal, PullBatch, PushOutcome, Result};
 
@@ -48,13 +49,21 @@ impl HubSession {
         self.call(|r| Cmd::Pull(since, limit, false, r)).await
     }
 
-    /// Like [`HubSession::pull`] without the content: every payload is `Null`, and
-    /// [`PullBatch::notes`] holds what the object is. For programs that need the routing summary.
-    pub async fn pull_envelopes(&self, since: Option<ActivityId>, limit: u32) -> Result<PullBatch> {
-        self.call(|r| Cmd::Pull(since, limit, true, r)).await
+    /// What other programs did, without the content, for programs that need the routing summary. Its
+    /// place is its own [`EnvelopeCursor`], which [`HubSession::ack`] does not take: the hub's cursor
+    /// says what `sync_once` applied, and moving it from here would lose that content for good. `None`
+    /// starts at the hub's cursor; the hub does not remember this reader's place.
+    pub async fn pull_envelopes(
+        &self,
+        since: Option<EnvelopeCursor>,
+        limit: u32,
+    ) -> Result<EnvelopeBatch> {
+        let since = since.map(EnvelopeCursor::activity);
+        let batch = self.call(|r| Cmd::Pull(since, limit, true, r)).await?;
+        Ok(EnvelopeBatch::from_pull(batch))
     }
 
-    /// Tell the hub everything up to `up_to` was applied.
+    /// Tell the hub everything up to `up_to` was applied, with [`PullBatch::last`] of a [`HubSession::pull`].
     pub async fn ack(&self, up_to: ActivityId) -> Result<()> {
         self.call(|r| Cmd::Ack(up_to, r)).await
     }

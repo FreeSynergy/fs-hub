@@ -25,5 +25,16 @@ pub enum Error {
     AlreadyRunning(String),
 }
 
+impl Error {
+    /// A failure that may pass: nothing is wrong with what was asked, so no cursor may move.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::Store(e) => fs_hub_proto::is_transient(e),
+            Self::Io(_) => true,
+            _ => false,
+        }
+    }
+}
+
 /// Result alias for the daemon.
 pub type Result<T> = std::result::Result<T, Error>;

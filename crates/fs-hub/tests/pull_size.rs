@@ -4,7 +4,7 @@ mod common;
 
 use common::{Env, note, notes_manifest, session};
 use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, ActivityId, ObjectId};
+use fs_store::{ActivityFilter, ActivityId, Envelope, ObjectId, StoredObject};
 
 const NOTES: usize = 80;
 const MIB: usize = 1 << 20;
@@ -126,4 +126,57 @@ async fn sync_once_carries_large_objects_both_ways() {
         ..Default::default()
     };
     assert!(a_store.activities(&unsynced).await.unwrap().is_empty());
+}
+
+/// Entries a reader does not see, at and around a cut: its cursor passes them, nothing comes twice.
+#[tokio::test]
+async fn invisible_entries_at_a_cut_are_passed_once() {
+    let env = Env::start();
+    let store = env.store("wiki").await;
+    let wiki = session(&env, notes_manifest("wiki").write(&["Note", "Task"])).await;
+    let mut notes = Vec::new();
+    for i in 0..3 {
+        let o = note(&format!("N{i}"), 15 * MIB);
+        notes.push(o.envelope.id);
+        store.put(o, "wiki").await.unwrap();
+        let task = StoredObject::new(
+            Envelope::new("Task", format!("T{i}")),
+            "application/json",
+            serde_json::json!({}),
+        );
+        store.put(task, "wiki").await.unwrap();
+    }
+    assert_eq!(wiki.sync_once(store.as_ref()).await.unwrap().accepted, 6);
+
+    let reader = session(&env, notes_manifest("reader")).await;
+    let hub_log = env.hub().core().store();
+    let log = hub_log
+        .activities(&ActivityFilter::default())
+        .await
+        .unwrap();
+    assert_eq!(log.len(), 6);
+
+    let first = reader.pull(None, 0).await.unwrap();
+    let got: Vec<_> = first.activities.iter().map(|a| a.object).collect();
+    assert_eq!(
+        got,
+        notes[..2],
+        "two of 15 MiB fit a page, the third does not"
+    );
+    assert!(first.more);
+    assert_eq!(
+        first.last,
+        Some(log[3].id),
+        "past the task behind the last note"
+    );
+    reader.ack(first.last.unwrap()).await.unwrap();
+
+    let second = reader.pull(None, 0).await.unwrap();
+    let got: Vec<_> = second.activities.iter().map(|a| a.object).collect();
+    assert_eq!(got, notes[2..]);
+    assert!(!second.more);
+    assert_eq!(second.last, Some(log[5].id), "and past the last task");
+    reader.ack(second.last.unwrap()).await.unwrap();
+    let rest = reader.pull(None, 0).await.unwrap();
+    assert_eq!((rest.activities.len(), rest.last), (0, Some(log[5].id)));
 }

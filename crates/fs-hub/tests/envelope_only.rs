@@ -65,18 +65,16 @@ async fn the_session_gets_summaries_and_sync_once_still_gets_payloads() {
 
     let reader = session(&env, notes_manifest("reader")).await;
     let page = reader.pull_envelopes(None, 0).await.unwrap();
-    assert_eq!(page.activities.len(), 2);
-    for a in &page.activities {
-        assert!(a.payload.is_null(), "{:?}", a.payload);
-        let note = &page.notes[&a.id];
+    assert_eq!(page.entries.len(), 2);
+    for entry in &page.entries {
         assert_eq!(
-            note.envelope.id, id,
+            entry.envelope.id, id,
             "log-only entries say what they are about"
         );
-        assert_eq!(note.envelope.name, "Ada's note");
+        assert_eq!(entry.envelope.name, "Ada's note");
     }
 
-    // It did not move the cursor, and a normal pull is untouched.
+    // It moved nothing: a sync still gets all of it, with the content.
     let own = env.store("reader").await;
     let report = reader.sync_once(own.as_ref()).await.unwrap();
     assert_eq!(
@@ -87,4 +85,38 @@ async fn the_session_gets_summaries_and_sync_once_still_gets_payloads() {
     );
     let got = own.get(id).await.unwrap().unwrap();
     assert_eq!(got.content["text"].as_str().unwrap().len(), 64);
+}
+
+/// The place of a summary reader is its own, and `sync_once` is not affected by it.
+#[tokio::test]
+async fn summaries_page_with_their_own_cursor_and_the_hubs_stays() {
+    let env = Env::start();
+    let store = env.store("wiki").await;
+    let wiki = session(&env, notes_manifest("wiki")).await;
+    for i in 0..5 {
+        store.put(note(&format!("N{i}"), 8), "wiki").await.unwrap();
+    }
+    wiki.sync_once(store.as_ref()).await.unwrap();
+
+    let reader = session(&env, notes_manifest("reader")).await;
+    let (mut names, mut place) = (Vec::new(), None);
+    loop {
+        let page = reader.pull_envelopes(place, 2).await.unwrap();
+        names.extend(page.entries.iter().map(|e| e.envelope.name.clone()));
+        place = page.next;
+        if !page.more {
+            break;
+        }
+    }
+    assert_eq!(names, ["N0", "N1", "N2", "N3", "N4"]);
+    // A place survives as text.
+    let text = place.unwrap().to_string();
+    assert_eq!(
+        text.parse::<fs_hub_client::EnvelopeCursor>().unwrap(),
+        place.unwrap()
+    );
+
+    let own = env.store("reader").await;
+    let report = reader.sync_once(own.as_ref()).await.unwrap();
+    assert_eq!(report.applied, 5, "the content still comes");
 }

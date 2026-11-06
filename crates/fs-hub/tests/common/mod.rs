@@ -85,6 +85,23 @@ pub fn note(name: &str, bytes: usize) -> StoredObject {
     StoredObject::new(Envelope::new("Note", name), "application/json", content)
 }
 
+/// A `Note` that names its person in every field the cores use for that.
+pub fn note_of_ada(name: &str, bytes: usize) -> StoredObject {
+    let mut o = note(name, bytes);
+    let ada = "https://example.org/users/ada".to_string();
+    o.envelope.attributed_to = Some(ada.clone());
+    for list in [
+        &mut o.envelope.to,
+        &mut o.envelope.cc,
+        &mut o.envelope.bto,
+        &mut o.envelope.bcc,
+        &mut o.envelope.audience,
+    ] {
+        list.push(ada.clone());
+    }
+    o
+}
+
 pub fn person(name: &str, email: &str) -> Card {
     let mut c = Card::individual(name);
     c.add_email(email);

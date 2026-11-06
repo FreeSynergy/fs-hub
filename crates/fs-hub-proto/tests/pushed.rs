@@ -34,6 +34,10 @@ fn only_a_plain_object_says_when() {
     write_pushed_list(list.reborrow(), &items).unwrap();
     let reader = list.into_reader();
     assert!(reader.get(0).get_original_actor().unwrap().is_empty());
+    assert!(
+        reader.get(0).get_actor().unwrap().is_empty(),
+        "stays in the log"
+    );
     let back = read_pushed_list(reader).unwrap();
     assert_eq!(
         back[0].original_at.map(|t| t.timestamp_millis()),
