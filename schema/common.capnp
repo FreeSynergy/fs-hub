@@ -34,6 +34,9 @@ struct Envelope {
   published    @12 :Timestamp;
   updated      @13 :Timestamp;
   sensitive    @14 :List(Text);                             # DPV categories (ADR 0029)
+  describes    @15 :Text;                                   # AS2 Profile: whom this describes (actor IRI / DID)
+  startTime    @16 :Timestamp;                              # AS2 Event
+  endTime      @17 :Timestamp;                              # AS2 Event
 }
 
 # what a program offers (ADR 0021): capability ids like "message.send", "contact.create"

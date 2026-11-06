@@ -754,6 +754,7 @@ dependencies = [
 name = "fs-contacts-core"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "calcard",
  "chrono",
  "fs-store",
