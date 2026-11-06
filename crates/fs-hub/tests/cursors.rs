@@ -3,13 +3,13 @@
 mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
-use fs_people_core::ContactRepo;
+use fs_people_core::PeopleRepo;
 
 #[tokio::test]
 async fn pull_cursor_is_kept_by_the_hub() {
     let env = Env::start();
     let a_store = env.store("contacts").await;
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let a = session(&env, contacts_manifest("contacts")).await;
     let b_store = env.store("calendar").await;
     let b = session(&env, calendar_manifest()).await;

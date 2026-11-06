@@ -5,14 +5,14 @@ mod common;
 use common::{Env, config, contacts_manifest, person, session};
 use fs_hub::Daemon;
 use fs_hub_client::Manifest;
-use fs_people_core::ContactRepo;
+use fs_people_core::PeopleRepo;
 use fs_store::{ActivityFilter, Store};
 
 #[tokio::test]
 async fn push_is_idempotent_and_state_survives_a_restart() {
     let mut env = Env::start();
     let a_store = env.store("contacts").await;
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let a = session(&env, contacts_manifest("contacts")).await;
     contacts
         .create(person("Ada", "ada@example.org"))

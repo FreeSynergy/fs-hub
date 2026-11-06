@@ -4,14 +4,14 @@ mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
 use fs_hub_client::ChangeNotice;
-use fs_people_core::ContactRepo;
+use fs_people_core::PeopleRepo;
 use std::time::Duration;
 
 #[tokio::test]
 async fn subscribers_hear_about_other_programs() {
     let env = Env::start();
     let a_store = env.store("contacts").await;
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let a = session(&env, contacts_manifest("contacts")).await;
     let b = session(&env, calendar_manifest()).await;
     let mut rx = b.subscribe().await.unwrap();

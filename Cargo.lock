@@ -686,7 +686,7 @@ version = "0.2.0"
 dependencies = [
  "capnp",
  "chrono",
- "fs-interfaces",
+ "fs-interfaces 0.1.0",
  "fs-store",
  "serde",
  "serde_json",
@@ -698,6 +698,14 @@ dependencies = [
 name = "fs-interfaces"
 version = "0.1.0"
 source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.1.0#00b44e40881a34972e99657c0fbbe50d6d67c00d"
+dependencies = [
+ "capnp",
+]
+
+[[package]]
+name = "fs-interfaces"
+version = "0.2.0"
+source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.2.0#6d3f150e8c205a61a79ddfd0132e9a778420d92f"
 dependencies = [
  "capnp",
 ]
@@ -719,12 +727,13 @@ dependencies = [
 
 [[package]]
 name = "fs-people-core"
-version = "0.1.0"
-source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.1.0#28497b2b87c125f8e2bcf05dc411d46898b2c16c"
+version = "0.2.0"
+source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.2.0#f3df9fe19cdd4358e00226aca19b1f17678ec93b"
 dependencies = [
  "async-trait",
  "calcard",
  "chrono",
+ "fs-interfaces 0.2.0",
  "fs-store",
  "serde",
  "serde_json",

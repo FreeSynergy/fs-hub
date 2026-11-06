@@ -7,7 +7,7 @@ use std::sync::Arc;
 use fs_calendar_core::{CalendarRepo, Event};
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubStatus, Manifest, connect_at};
-use fs_people_core::{Card, ContactRepo};
+use fs_people_core::{Card, PeopleRepo};
 use fs_store::{Query, Store, TursoStore};
 
 #[tokio::main]
@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Program A: contacts, own database. It creates a contact.
     let a_store = Arc::new(TursoStore::open(dir.path().join("contacts.db")).await?);
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let mut ada = Card::individual("Ada Lovelace");
     ada.add_email("ada@example.org");
     contacts.create(ada).await?;

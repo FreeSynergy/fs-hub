@@ -5,7 +5,7 @@ mod common;
 use common::{contacts_manifest, person};
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubStatus, connect_at, offer_install};
-use fs_people_core::ContactRepo;
+use fs_people_core::PeopleRepo;
 use fs_store::{ActivityFilter, Query, Store, TursoStore};
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ use std::sync::Arc;
 async fn without_a_hub_programs_keep_working() {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(TursoStore::open(dir.path().join("c.db")).await.unwrap());
-    let contacts = ContactRepo::new(store.clone(), "contacts");
+    let contacts = PeopleRepo::new(store.clone(), "contacts");
     let socket = dir.path().join("hub.sock");
 
     // No socket at all.

@@ -3,17 +3,17 @@
 mod common;
 
 use common::{Env, contacts_manifest, person, session};
-use fs_people_core::{ContactRepo, ListFilter};
+use fs_people_core::{ListFilter, PeopleRepo};
 use fs_store::{Query, Store};
 
 #[tokio::test]
 async fn proposals_skip_sensitive_data_and_same_program() {
     let env = Env::start();
     let a_store = env.store("contacts").await;
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let a = session(&env, contacts_manifest("contacts")).await;
     let c_store = env.store("pm").await;
-    let pm = ContactRepo::new(c_store.clone(), "pm");
+    let pm = PeopleRepo::new(c_store.clone(), "pm");
     let c = session(&env, contacts_manifest("pm")).await;
 
     // Same e-mail in two programs: a proposal.
@@ -65,7 +65,7 @@ async fn proposals_skip_sensitive_data_and_same_program() {
     a.sync_once(a_store.as_ref()).await.unwrap();
     assert!(c_store.get(secret.envelope.id).await.unwrap().is_none());
     // Pulled cards land in the other program's list as ordinary contacts.
-    let in_pm = ContactRepo::new(c_store.clone(), "pm")
+    let in_pm = PeopleRepo::new(c_store.clone(), "pm")
         .list(&ListFilter::default())
         .await
         .unwrap();

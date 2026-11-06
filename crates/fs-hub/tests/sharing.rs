@@ -4,7 +4,7 @@ mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
 use fs_calendar_core::{CalendarRepo, Event};
-use fs_people_core::ContactRepo;
+use fs_people_core::PeopleRepo;
 use fs_store::{ActivityFilter, Query, Store};
 
 #[tokio::test]
@@ -13,7 +13,7 @@ async fn programs_share_work_through_the_hub() {
 
     // Program A: contacts, own store.
     let a_store = env.store("contacts").await;
-    let contacts = ContactRepo::new(a_store.clone(), "contacts");
+    let contacts = PeopleRepo::new(a_store.clone(), "contacts");
     let a = session(&env, contacts_manifest("contacts")).await;
     let ada = contacts
         .create(person("Ada Lovelace", "Ada@Example.org"))
