@@ -626,16 +626,14 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "fs-calendar-core"
-version = "0.2.0"
-source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.2.0#19084bd08c65e1e2fcd6d474ac9d22b300b5ee21"
+version = "0.3.0"
+source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.3.0#f0d137f64fc82db79642f7337a08f91ef0ac438b"
 dependencies = [
  "async-trait",
- "calcard",
  "chrono",
+ "fs-jscalendar",
  "fs-store",
  "fs-tasks-core",
- "jiff",
- "jiff-tzdb",
  "rrule",
  "serde",
  "serde_json",
@@ -705,6 +703,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-jscalendar"
+version = "0.1.0"
+source = "git+https://github.com/FreeSynergy/fs-jscalendar?tag=v0.1.0#10ba1ab5d6ca93065224b90202c220b127fa60a6"
+dependencies = [
+ "calcard",
+ "chrono",
+ "jiff",
+ "jiff-tzdb",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "fs-people-core"
 version = "0.1.0"
 source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.1.0#28497b2b87c125f8e2bcf05dc411d46898b2c16c"
@@ -738,15 +751,13 @@ dependencies = [
 
 [[package]]
 name = "fs-tasks-core"
-version = "0.1.0"
-source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.1.0#30d47ace9aa3b5335d2c0c95c80b53cebd17ff20"
+version = "0.3.0"
+source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.3.0#1fc684a88f31e4dd14b4d79e9a0c490ccc5e30de"
 dependencies = [
  "async-trait",
- "calcard",
  "chrono",
+ "fs-jscalendar",
  "fs-store",
- "jiff",
- "jiff-tzdb",
  "serde",
  "serde_json",
  "thiserror",
