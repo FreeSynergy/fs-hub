@@ -686,7 +686,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -737,13 +737,14 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "fs-calendar-core"
-version = "0.1.0"
-source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.1.0#2002501929ab19d6c1d19ad00c8d8d65bf7ca1c9"
+version = "0.2.0"
+source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.2.0#19084bd08c65e1e2fcd6d474ac9d22b300b5ee21"
 dependencies = [
  "async-trait",
  "calcard",
  "chrono",
  "fs-store",
+ "fs-tasks-core",
  "jiff",
  "jiff-tzdb",
  "rrule",
@@ -848,6 +849,22 @@ dependencies = [
  "turso",
  "unicode-normalization",
  "uuid",
+]
+
+[[package]]
+name = "fs-tasks-core"
+version = "0.1.0"
+source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.1.0#30d47ace9aa3b5335d2c0c95c80b53cebd17ff20"
+dependencies = [
+ "async-trait",
+ "calcard",
+ "chrono",
+ "fs-store",
+ "jiff",
+ "jiff-tzdb",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1657,7 +1674,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2119,7 +2136,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2302,7 +2319,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2432,7 +2449,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
