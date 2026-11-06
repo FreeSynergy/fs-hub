@@ -12,7 +12,6 @@ use fs_store::{ActivityFilter, TursoStore};
 async fn a_replay_after_a_crash_overwrites_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let (socket, data) = (dir.path().join("hub.sock"), dir.path().join("hub-data"));
-    std::fs::create_dir_all(&data).unwrap();
     let hub = start(&socket, &data);
     let (a, b) = (connect(&socket, "a").await, connect(&socket, "b").await);
     let a_store = TursoStore::open(dir.path().join("a.db")).await.unwrap();

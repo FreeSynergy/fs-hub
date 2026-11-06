@@ -11,7 +11,6 @@ use common::raw::register;
 use common::{Env, note, notes_manifest, session};
 use fs_hub_client::Problem;
 use fs_hub_proto::common_capnp::change_listener;
-use fs_hub_proto::read_problem;
 use fs_store::traits::{ActivityLog, ObjectRepository};
 use fs_store::{Activity, ActivityFilter};
 use tokio::sync::mpsc;
@@ -43,7 +42,7 @@ impl change_listener::Server for Consumer {
         params: change_listener::EndedParams,
         _: change_listener::EndedResults,
     ) -> Result<(), capnp::Error> {
-        let problem = read_problem(params.get()?.get_problem()?).unwrap();
+        let problem = Problem::read(params.get()?.get_problem()?)?;
         let _ = self.ended.send(problem);
         Ok(())
     }

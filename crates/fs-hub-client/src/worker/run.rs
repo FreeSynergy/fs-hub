@@ -6,12 +6,11 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 
-use capnp_rpc::{RpcSystem, rpc_twoparty_capnp::Side, twoparty};
 use fs_hub_proto::common_capnp::subscription;
 use fs_hub_proto::hub_capnp::hub;
-use tokio::net::UnixStream;
+use fs_hub_proto::reader_options;
+use fs_interfaces::rpc::{Connection, connect_with};
 use tokio::sync::{mpsc, oneshot};
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use super::calls::{ack, programs, proposals, pull, push, register};
 use super::listener::subscribe;
@@ -24,8 +23,9 @@ pub(super) async fn run(
     mut cmds: mpsc::UnboundedReceiver<Cmd>,
     ready: oneshot::Sender<Result<()>>,
 ) {
-    let stream = match UnixStream::connect(&socket).await {
-        Ok(s) => s,
+    // Refuses a socket served by another user. Dropping the connection closes it.
+    let connection: Connection<hub::Client> = match connect_with(&socket, reader_options()).await {
+        Ok(connection) => connection,
         Err(e)
             if matches!(
                 e.kind(),
@@ -40,18 +40,9 @@ pub(super) async fn run(
             return;
         }
     };
-    let (r, w) = stream.into_split();
-    let network = twoparty::VatNetwork::new(
-        r.compat(),
-        w.compat_write(),
-        Side::Client,
-        fs_hub_proto::reader_options(),
-    );
-    let mut rpc = RpcSystem::new(Box::new(network), None);
-    let hub: hub::Client = rpc.bootstrap(Side::Server);
-    let rpc_task = tokio::task::spawn_local(rpc);
+    let hub = &connection.client;
 
-    let session = match register(&hub, &manifest).await {
+    let session = match register(hub, &manifest).await {
         Ok(s) => s,
         Err(e) => {
             let _ = ready.send(Err(e));
@@ -73,10 +64,10 @@ pub(super) async fn run(
                 let _ = reply.send(ack(&session, id).await);
             }
             Cmd::Programs(reply) => {
-                let _ = reply.send(programs(&hub).await);
+                let _ = reply.send(programs(hub).await);
             }
             Cmd::Proposals(reply) => {
-                let _ = reply.send(proposals(&hub).await);
+                let _ = reply.send(proposals(hub).await);
             }
             Cmd::Subscribe(reply) => {
                 let (tx, rx) = mpsc::unbounded_channel();
@@ -91,6 +82,5 @@ pub(super) async fn run(
     // Session dropped: closing the connection ends the hub-side session.
     drop(subscriptions);
     drop(session);
-    drop(hub);
-    rpc_task.abort();
+    drop(connection);
 }

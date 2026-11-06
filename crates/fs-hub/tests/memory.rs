@@ -26,7 +26,6 @@ async fn a_page_of_large_entries_does_not_read_the_whole_scan() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("hub.sock");
     let data = dir.path().join("hub-data");
-    std::fs::create_dir_all(&data).unwrap();
 
     let hub = start(&socket, &data);
     let writer = connect(&socket, "wiki").await;

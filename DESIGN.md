@@ -42,7 +42,7 @@ on traits; concrete types are wired in `core/hub.rs`.
 
 ## State
 
-Version 0.3.0 (contract and `rpc` from `fs-interfaces` v0.24.0; capnp/capnp-rpc 0.27; Rust 1.89, which `rpc` needs; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests). Test dependency bumped to fs-calendar v0.4.0 (calendar provider rule); 9 tests before and after.
+Version 0.3.0 (contract and `rpc` from `fs-interfaces` v0.32.0; capnp/capnp-rpc 0.27; Rust 1.89, which `rpc` needs; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests). Test dependency bumped to fs-calendar v0.4.0 (calendar provider rule); 9 tests before and after.
 
 | Area | State |
 |---|---|
@@ -70,7 +70,7 @@ Version 0.3.0 (contract and `rpc` from `fs-interfaces` v0.24.0; capnp/capnp-rpc 
 * `fs-hub-proto`: re-export of the contract from `fs-interfaces`, conversions wire <-> `fs-store` types. A third crate beyond the two asked for, so daemon and client share the contract without depending on each other.
 * `fs-hub`: `HubCore` (connecting logic, no RPC, behind the traits `ProgramRegistry`, `ActivitySink`, `ActivitySource`, `ProposalEngine`, `CursorRepository`), `server` (RPC adapter), `Daemon` (own thread, for tests/embedding), binary.
 * `fs-hub-client`: what programs embed.
-* Dependencies: `capnp`/`capnp-rpc` 0.27 (MIT), `fs-interfaces` (git tag v0.24.0, feature `rpc`), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path).
+* Dependencies: `capnp`/`capnp-rpc` 0.27 (MIT), `fs-interfaces` (git tag v0.32.0, feature `rpc`), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path).
 
 ## Decisions
 
@@ -128,7 +128,7 @@ A message above the reader's limit ends the whole connection with all its capabi
 * The calendar-participant -> contact link is not made by the hub; the calendar finds the pulled contact by e-mail itself.
 * Limits: batch sizes are fixed (pull 200 default), all limits above are constants; `Activity.at` travels with millisecond precision. After a run of small entries, a scan can hold 16 entries of any size.
 * `proposals` is on `Hub` in the contract, without a session, so the hub filters by what the same connection registered, and an unregistered connection gets none. It belongs on `Session`; the contract should move it. Not cut by size either: names up to an object's size, in numbers, could pass a message. Nothing near that has been seen.
-* **`rpc` transport not adopted yet**: in v0.24.0 `rpc::serve` and `rpc::connect` always use default `ReaderOptions`, and `BoundSocket`'s listener is private, so the hub cannot use them with its raised limit. The next `fs-interfaces` tag brings `serve_with`, `connect_with` and `Problem::read`, which let the hub drop its transport and `read_problem`. Until then it keeps its own accept loop, `bind_socket` and peer check, without the lock file and the euid check of `rpc`. The client does not check who serves the socket. Taken from `rpc`: envelope, uuids, default socket path, feed forwarding, `Problem`, limits.
+* **Server transport not on `rpc` yet**: the client uses `rpc::connect_with`, which refuses a socket served by another user. `rpc::serve_with` hands one bootstrap to every connection and `BoundSocket`'s listener is private, while `proposals` is on `Hub` in the contract, without a session, so the caller is only known from a per-connection bootstrap. Moving now would give names and e-mail addresses to any caller. Once `proposals` is on `Session`, the hub drops its accept loop and `bind_socket`, and gets the lock file and the euid check of `rpc`; until then a start racing another start is not excluded. Taken from `rpc`: envelope, uuids, default socket path, feed forwarding, `Problem`, limits, `connect_with`, `prepare_data_dir`.
 * A consumer whose `change` never returns only stops the feed for itself; `ended` cannot overtake that call (see Needed elsewhere), and if the feed lagged meanwhile nothing more arrives to trigger the overflow rule. It ends with the connection.
 
 ## Needed elsewhere
@@ -137,7 +137,7 @@ A message above the reader's limit ends the whole connection with all its capabi
 * **fs-store**: (a) `Store::put` always stamps `updated`/creates a new activity; a "apply remote change without a new local log entry as unsynced" (or `put_synced`) would remove the need for the `hub:` actor convention; a log purge is coming, and the old entries of a marked object wait for it; a size column in `ActivityFilter` would let a scan stop before reading a large entry; (b) `ActivityFilter` has no object-type filter, so the hub reads and parses payloads to filter by type; (c) `mark_synced` is prefix-only; (d) an `ObjectId` can only be UUIDv7, so the hub cannot derive deterministic ids for its state objects.
 * **fs-contacts**: index `kind`, `email`, `phone` are read by the hub's proposals; they should be documented as part of the hub contract (the hub knows these index keys). Better: a generic "identity keys" index convention in `data/<domain>/standards.md`.
 * **fs-calendar**: `Event` participants are only e-mail strings; a hub-level "participant -> contact" resolution would need a convention for which index key carries identity (`participant_email` vs contacts' `email`).
-* **`fs-interfaces`**: (a) `rpc::serve`/`connect` need a way to pass `ReaderOptions`, or `BoundSocket` an accessor for its listener; (b) `common.capnp` promises `ended` when "its listener failed", but capnp-rpc 0.27 fails every later call on a capability after a stream call answered with an error, and later calls wait while a `change` is under way, so a listener that failed or never answers cannot be told (`local.rs`); the hub ends the feed and releases the listener, which is all that consumer sees. Our client never answers `change` with an error for that reason; (c) `rpc::Problem` has `write` but no reader, the hub has its own `read_problem`; (d) `rpc::read_envelope` refuses an envelope without timestamps, which `Activity.envelope` of a log-only entry was until now: pull answers now carry the stored object's envelope.
+* **`fs-interfaces`**: `proposals` belongs on `Session` in `hub.capnp`, see above. `rpc` pins `fs-store` v0.2.0, so the hub stays there too: its types are on `rpc`'s signatures.
 * **`fs-history-hub`**: pins hub v0.2.0. At the next bump `DEFAULT_MAX_BATCH` and the "too large" advice can go, `pull_envelopes` fits it (it reads only summaries), and `tests/large_batch.rs` expects the old failure.
 * **ADR 0019** names the socket but not the contract version negotiation: 0.1 requires an exact match for now.
 

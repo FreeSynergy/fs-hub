@@ -9,7 +9,7 @@ use std::rc::Rc;
 use capnp_rpc::new_client;
 use fs_hub_proto::common_capnp::{change, change_listener, subscription};
 use fs_hub_proto::hub_capnp::session;
-use fs_hub_proto::{ChangeNotice, Problem, read_problem, read_uuid};
+use fs_hub_proto::{ChangeNotice, Problem, read_uuid};
 use fs_interfaces::rpc::FEED_ENDED_PROBLEM_TYPE;
 use fs_store::ObjectId;
 use tokio::sync::mpsc;
@@ -93,8 +93,7 @@ impl change_listener::Server for Listener {
         params: change_listener::EndedParams,
         _: change_listener::EndedResults,
     ) -> std::result::Result<(), capnp::Error> {
-        let problem = read_problem(params.get()?.get_problem()?)
-            .map_err(|e| capnp::Error::failed(e.to_string()))?;
+        let problem = Problem::read(params.get()?.get_problem()?)?;
         self.end(problem);
         Ok(())
     }

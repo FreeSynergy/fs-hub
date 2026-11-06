@@ -8,6 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use fs_hub_proto::{Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, Pushed};
+use fs_interfaces::rpc::prepare_data_dir;
 use fs_store::traits::{ActivityLog, ChangeFeed, ObjectQuery, ObjectRepository};
 use fs_store::{Activity, ActivityId, ObjectId, Store, StoredObject, TursoStore};
 use tokio::sync::broadcast;
@@ -43,7 +44,8 @@ impl HubCore {
 
     /// Like [`HubCore::open`] with another proposal strategy.
     pub async fn open_with(dir: &Path, engine: Arc<dyn ProposalEngine>) -> Result<Arc<Self>> {
-        std::fs::create_dir_all(dir)?;
+        // People's data: for this user alone, and one that others can reach is refused.
+        let dir = &prepare_data_dir(dir)?;
         let objects = Arc::new(TursoStore::open(dir.join("objects.db")).await?);
         let state = Arc::new(TursoStore::open(dir.join("state.db")).await?);
         let times = Arc::new(TursoStore::open(dir.join("times.db")).await?);

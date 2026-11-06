@@ -29,7 +29,7 @@ async fn a_missing_list_stops_the_hub_from_starting() {
 async fn over_an_older_log_every_deleted_object_is_listed() {
     let dir = tempfile::tempdir().unwrap();
     let data = dir.path().join("hub-data");
-    std::fs::create_dir_all(&data).unwrap();
+    fs_interfaces::rpc::prepare_data_dir(&data).unwrap();
     let (deleted, kept);
     {
         let old = TursoStore::open(data.join("objects.db")).await.unwrap();
@@ -99,4 +99,15 @@ async fn at_start_a_mark_that_holds_takes_a_restored_copy_off() {
     let late = session(&env, notes_manifest("late")).await;
     let page = late.pull(None, 0).await.unwrap();
     assert!(!format!("{:?}", page.activities).contains("real name"));
+}
+
+/// People's data: a directory others can reach is refused.
+#[tokio::test]
+async fn a_data_directory_others_can_reach_is_refused() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let data = dir.path().join("hub-data");
+    std::fs::create_dir_all(&data).unwrap();
+    std::fs::set_permissions(&data, PermissionsExt::from_mode(0o755)).unwrap();
+    assert!(Daemon::spawn(config(&dir)).is_err());
 }

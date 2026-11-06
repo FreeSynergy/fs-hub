@@ -4,26 +4,15 @@
 
 use super::activity::read_pulled_list;
 use super::ids::{read_activity_id, write_activity_id};
-use crate::common_capnp::problem;
 use crate::hub_capnp as hub;
 use crate::{Problem, PullBatch, PushOutcome, Result};
-
-/// Wire -> problem.
-pub fn read_problem(r: problem::Reader<'_>) -> Result<Problem> {
-    Ok(Problem::new(
-        r.get_type()?.to_string()?,
-        r.get_title()?.to_string()?,
-        r.get_detail()?.to_string()?,
-        r.get_status(),
-    ))
-}
 
 /// Wire -> push outcome.
 pub fn read_push_outcome(r: hub::session::push_results::Reader<'_>) -> Result<PushOutcome> {
     let problems = r
         .get_problems()?
         .iter()
-        .map(read_problem)
+        .map(|p| Ok(Problem::read(p)?))
         .collect::<Result<_>>()?;
     Ok(PushOutcome {
         last_accepted: read_activity_id(r.get_last_accepted()?)?,
