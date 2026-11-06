@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
-use fs_people_core::ContactRepo;
 use fs_hub_client::ChangeNotice;
+use fs_people_core::ContactRepo;
 use std::time::Duration;
 
 #[tokio::test]

@@ -5,21 +5,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-build = "build.rs"
-
-[features]
-# Re-generate src/hub_capnp.rs / src/common_capnp.rs from ../../schema (needs no C++ toolchain).
-regenerate = ["dep:capnpc", "dep:capnpc-embedded"]
 
 [dependencies]
 capnp.workspace = true
 fs-store.workspace = true
+fs-interfaces.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
 uuid = { version = "1", features = ["v7"] }
 chrono.workspace = true
-
-[build-dependencies]
-capnpc = { version = "0.23", optional = true }
-capnpc-embedded = { version = "0.2", optional = true }

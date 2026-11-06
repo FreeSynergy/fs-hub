@@ -2,7 +2,7 @@
 //! wire types and `fs-store` types. Shared by the daemon and the client library.
 //!
 //! Pattern: Adapter — `convert` translates between the generated wire code and plain Rust types.
-//! The generated code (`common_capnp.rs`, `hub_capnp.rs`) is committed (ADR 0040); see `build.rs`.
+//! The generated code comes from `fs-interfaces` (ADR 0040, 0045).
 
 #![deny(missing_docs)]
 #![warn(clippy::pedantic)]
@@ -17,12 +17,8 @@
     clippy::doc_markdown
 )]
 
-#[rustfmt::skip]
-#[allow(clippy::all, clippy::pedantic, unused_parens, dead_code, missing_docs)]
-pub mod common_capnp;
-#[rustfmt::skip]
-#[allow(clippy::all, clippy::pedantic, unused_parens, dead_code, missing_docs)]
-pub mod hub_capnp;
+// The schemas and the generated code live in `fs-interfaces` (ADR 0045); re-exported under the old paths.
+pub use fs_interfaces::{common_capnp, hub_capnp};
 
 mod content;
 mod contract;

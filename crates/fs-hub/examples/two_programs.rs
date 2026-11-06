@@ -5,9 +5,9 @@
 use std::sync::Arc;
 
 use fs_calendar_core::{CalendarRepo, Event};
-use fs_people_core::{Card, ContactRepo};
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubStatus, Manifest, connect_at};
+use fs_people_core::{Card, ContactRepo};
 use fs_store::{Query, Store, TursoStore};
 
 #[tokio::main]

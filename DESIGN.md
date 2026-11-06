@@ -35,12 +35,12 @@ on traits; concrete types are wired in `core/hub.rs`.
 
 ## State
 
-Version 0.1.0, local only (no remote, never pushed). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests).
+Version 0.2.0 (contract moved to `fs-interfaces` v0.1.0; capnp/capnp-rpc 0.27; no tag yet). Linux, Unix socket. ADR 0043 refactor done (traits first, no file over 200 lines, `#![deny(missing_docs)]`, `clippy::pedantic`); behaviour unchanged (7 e2e tests before and after, plus 2 envelope round-trip tests).
 
 | Area | State |
 |---|---|
-| Contract `schema/hub.capnp` (+ copy of `common.capnp`): `Hub.register/programs/proposals`, `Session.push/pull/ack/subscribe`, `Manifest`, `Activity`, `ProgramInfo`, `Proposal` | done, draft 0.1 |
-| Code generation: `capnpc-embedded` 0.2 (official compiler as WASM, no C++ toolchain) + `capnpc` 0.23 in `crates/fs-hub-proto/build.rs` | done; **generated code is committed** (`src/hub_capnp.rs`, `src/common_capnp.rs`, ADR 0040 point 4). Regenerate: `cargo build -p fs-hub-proto --features regenerate` (checked: reproduces the committed files byte for byte). The build dependencies are optional so a normal build does not compile the WASM engine |
+| Contract `hub.capnp` (+ `common.capnp`), both in `fs-interfaces`; this program owns `hub.capnp`: `Hub.register/programs/proposals`, `Session.push/pull/ack/subscribe`, `Manifest`, `Activity`, `ProgramInfo`, `Proposal` | done, draft 0.1 |
+| Code generation: in `fs-interfaces` (our `capnp-compiler` + `capnpc` 0.27, output identical to `capnpc-embedded`). `fs-hub-proto` re-exports `hub_capnp` / `common_capnp`; the local `schema/`, `build.rs` and `regenerate` feature are gone | done |
 | Daemon (`fs-hub` binary + lib): tokio + `capnp-rpc` over `$XDG_RUNTIME_DIR/freesynergy/hub.sock` (dir 0700, socket 0600), refuses a second hub, removes a stale socket file, removes the socket on shutdown | done |
 | Hub store: `objects.db` (a `TursoStore` with all collected objects and the hub's own log) and `state.db` (per-program manifest + cursors) | done |
 | Apply pushed activities, idempotent by activity id (per-program `last_accepted`, activity ids are strictly increasing per store); content-identical re-pushes are skipped; deletes and undo images are applied; log-only kinds (`Invite`, `Accept`, ...) are kept when the hub holds the object | done |
@@ -57,10 +57,10 @@ Version 0.1.0, local only (no remote, never pushed). Linux, Unix socket. ADR 004
 
 ## Crates
 
-* `fs-hub-proto`: schema, generated code, conversions wire <-> `fs-store` types. A third crate beyond the two asked for, so daemon and client share the contract without depending on each other.
+* `fs-hub-proto`: re-export of the contract from `fs-interfaces`, conversions wire <-> `fs-store` types. A third crate beyond the two asked for, so daemon and client share the contract without depending on each other.
 * `fs-hub`: `HubCore` (connecting logic, no RPC, behind the traits `ProgramRegistry`, `ActivitySink`, `ActivitySource`, `ProposalEngine`, `CursorRepository`), `server` (RPC adapter), `Daemon` (own thread, for tests/embedding), binary.
 * `fs-hub-client`: what programs embed.
-* Dependencies: `capnp`/`capnp-rpc`/`capnpc` 0.23 (MIT), `capnpc-embedded` 0.2 (MIT, build only, optional), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path). `capnp-rpc` 0.27 exists; 0.23 was taken to match `capnp`/`capnpc` 0.23.
+* Dependencies: `capnp`/`capnp-rpc` 0.27 (MIT), `fs-interfaces` (git tag v0.1.0), `tokio`, `tokio-util`, `futures`, `serde`, `tracing`, `fs-store` (path).
 
 ## Decisions
 

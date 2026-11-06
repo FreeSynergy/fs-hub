@@ -3,9 +3,9 @@
 mod common;
 
 use common::{contacts_manifest, person};
-use fs_people_core::ContactRepo;
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubStatus, connect_at, offer_install};
+use fs_people_core::ContactRepo;
 use fs_store::{ActivityFilter, Query, Store, TursoStore};
 use std::sync::Arc;
 

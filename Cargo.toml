@@ -3,16 +3,17 @@ resolver = "2"
 members = ["crates/fs-hub-proto", "crates/fs-hub", "crates/fs-hub-client"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 
 [workspace.dependencies]
 fs-store = { git = "https://github.com/FreeSynergy/fs-store", tag = "v0.2.0" }
+fs-interfaces = { git = "https://github.com/FreeSynergy/fs-interfaces", tag = "v0.1.0" }
 fs-hub-proto = { path = "crates/fs-hub-proto" }
-capnp = "0.23"
-capnp-rpc = "0.23"
+capnp = "0.27"
+capnp-rpc = "0.27"
 tokio = { version = "1", features = ["rt", "net", "sync", "macros", "time", "io-util", "signal"] }
 tokio-util = { version = "0.7", features = ["compat"] }
 futures = "0.3"
