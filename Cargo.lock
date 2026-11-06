@@ -626,12 +626,12 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "fs-calendar-core"
-version = "0.4.0"
-source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.4.0#c828b4ca54617a2f6f837a2e262c9e5d651faa76"
+version = "0.4.1"
+source = "git+https://github.com/FreeSynergy/fs-calendar?tag=v0.4.1#c33161e17cab41e04f21d193360c6a1ed23635cc"
 dependencies = [
  "async-trait",
  "chrono",
- "fs-interfaces 0.4.0",
+ "fs-interfaces",
  "fs-jscalendar",
  "fs-store",
  "fs-tasks-core",
@@ -687,7 +687,7 @@ version = "0.2.0"
 dependencies = [
  "capnp",
  "chrono",
- "fs-interfaces 0.1.0",
+ "fs-interfaces",
  "fs-store",
  "serde",
  "serde_json",
@@ -697,24 +697,8 @@ dependencies = [
 
 [[package]]
 name = "fs-interfaces"
-version = "0.1.0"
-source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.1.0#00b44e40881a34972e99657c0fbbe50d6d67c00d"
-dependencies = [
- "capnp",
-]
-
-[[package]]
-name = "fs-interfaces"
-version = "0.2.0"
-source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.2.0#6d3f150e8c205a61a79ddfd0132e9a778420d92f"
-dependencies = [
- "capnp",
-]
-
-[[package]]
-name = "fs-interfaces"
-version = "0.4.0"
-source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.4.0#faddd65d7e7d77a87736172b749abdb90980d290"
+version = "0.5.0"
+source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.5.0#a3573feb6e858423d2ad93bacd21b73c57355b4a"
 dependencies = [
  "capnp",
 ]
@@ -736,13 +720,13 @@ dependencies = [
 
 [[package]]
 name = "fs-people-core"
-version = "0.2.0"
-source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.2.0#f3df9fe19cdd4358e00226aca19b1f17678ec93b"
+version = "0.2.1"
+source = "git+https://github.com/FreeSynergy/fs-people?tag=v0.2.1#fc96a5bc0119e95cf06b9c78543e19e5bf0fdd8b"
 dependencies = [
  "async-trait",
  "calcard",
  "chrono",
- "fs-interfaces 0.2.0",
+ "fs-interfaces",
  "fs-store",
  "serde",
  "serde_json",
@@ -769,12 +753,12 @@ dependencies = [
 
 [[package]]
 name = "fs-tasks-core"
-version = "0.4.0"
-source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.4.0#75b203a68d7eaaf60dee0eb430170d0a63c5c851"
+version = "0.4.1"
+source = "git+https://github.com/FreeSynergy/fs-tasks?tag=v0.4.1#672b833b65fdccc15ec05bb3063e03d84908f692"
 dependencies = [
  "async-trait",
  "chrono",
- "fs-interfaces 0.4.0",
+ "fs-interfaces",
  "fs-jscalendar",
  "fs-store",
  "serde",

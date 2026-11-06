@@ -31,7 +31,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 
 [dev-dependencies]
 fs-hub-client = { path = "../fs-hub-client" }
-fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.2.0" }
-fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.4.0" }
+fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.2.1" }
+fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.4.1" }
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }
