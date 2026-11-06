@@ -1,7 +1,11 @@
+//! The program's handle to a registered hub connection.
+//!
+//! Pattern: Facade — typed async methods hiding the command channel to the RPC thread.
+
 use fs_store::{Activity, ActivityId};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::worker::Cmd;
+use crate::command::Cmd;
 use crate::{ChangeNotice, Error, ProgramInfo, Proposal, PullBatch, PushOutcome, Result};
 
 /// A registered connection to the hub. Cheap to clone; the connection closes when the last clone is dropped.

@@ -27,13 +27,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Program B: calendar, own database. It creates an event with that e-mail as participant.
     let b_store = Arc::new(TursoStore::open(dir.path().join("calendar.db")).await?);
     let calendar = CalendarRepo::new(b_store.clone(), "calendar");
-    let mut event = Event::new("Analytical engine review", "2026-12-01T10:00:00", "Europe/Berlin", "PT1H");
+    let mut event = Event::new(
+        "Analytical engine review",
+        "2026-12-01T10:00:00",
+        "Europe/Berlin",
+        "PT1H",
+    );
     event.add_invitee("Ada Lovelace", "ada@example.org");
     calendar.create(event).await?;
 
-    let a = connect_at(&socket, Manifest::new("contacts", "0.1.0").read(&["Profile"]).write(&["Profile", "Relationship"])).await?;
-    let b = connect_at(&socket, Manifest::new("calendar", "0.1.0").read(&["Profile"]).write(&["Event", "Task"])).await?;
-    let (HubStatus::Connected(a), HubStatus::Connected(b)) = (a, b) else { return Err("no hub".into()) };
+    let a = connect_at(
+        &socket,
+        Manifest::new("contacts", "0.1.0")
+            .read(&["Profile"])
+            .write(&["Profile", "Relationship"]),
+    )
+    .await?;
+    let b = connect_at(
+        &socket,
+        Manifest::new("calendar", "0.1.0")
+            .read(&["Profile"])
+            .write(&["Event", "Task"]),
+    )
+    .await?;
+    let (HubStatus::Connected(a), HubStatus::Connected(b)) = (a, b) else {
+        return Err("no hub".into());
+    };
 
     println!("contacts sync: {:?}", a.sync_once(a_store.as_ref()).await?);
     println!("calendar sync: {:?}", b.sync_once(b_store.as_ref()).await?);
@@ -44,11 +63,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         hub_store.count(&Query::new().of_type("Profile")).await?,
         hub_store.count(&Query::new().of_type("Event")).await?
     );
-    let known = b_store.query(&Query::new().of_type("Profile").with_index("email", "ada@example.org")).await?;
-    println!("calendar can now see the contact for its participant: {:?}", known.iter().map(|o| &o.envelope.name).collect::<Vec<_>>());
-    println!("hub proposals: {} (nothing sensitive is ever proposed)", a.proposals().await?.len());
+    let known = b_store
+        .query(
+            &Query::new()
+                .of_type("Profile")
+                .with_index("email", "ada@example.org"),
+        )
+        .await?;
+    println!(
+        "calendar can now see the contact for its participant: {:?}",
+        known.iter().map(|o| &o.envelope.name).collect::<Vec<_>>()
+    );
+    println!(
+        "hub proposals: {} (nothing sensitive is ever proposed)",
+        a.proposals().await?.len()
+    );
     for p in a.programs().await? {
-        println!("program {} reads {:?} writes {:?}", p.manifest.program, p.manifest.reads, p.manifest.writes);
+        println!(
+            "program {} reads {:?} writes {:?}",
+            p.manifest.program, p.manifest.reads, p.manifest.writes
+        );
     }
     drop((a, b));
     hub.stop()?;

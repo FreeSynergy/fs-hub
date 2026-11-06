@@ -22,7 +22,10 @@ fn describes_and_times_travel_in_the_envelope() {
     assert_eq!(back.describes, e.describes);
     assert_eq!(back.start_time, e.start_time);
     assert_eq!(back.end_time, e.end_time);
-    assert_eq!((back.id, back.object_type.as_str(), back.sensitive), (e.id, "Event", e.sensitive));
+    assert_eq!(
+        (back.id, back.object_type.as_str(), back.sensitive),
+        (e.id, "Event", e.sensitive)
+    );
 }
 
 #[test]

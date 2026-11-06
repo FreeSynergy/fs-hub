@@ -3,7 +3,9 @@
 use fs_hub::{Config, run_blocking};
 
 fn main() {
-    tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::from_default_env()).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
     let mut config = Config::default_locations();
     let mut socket = None;
     let mut data = None;
@@ -13,7 +15,9 @@ fn main() {
             "--socket" => socket = args.next(),
             "--data" => data = args.next(),
             "-h" | "--help" => {
-                println!("fs-hub [--socket PATH] [--data DIR]\nDefaults: $XDG_RUNTIME_DIR/freesynergy/hub.sock, $XDG_DATA_HOME/freesynergy/hub");
+                println!(
+                    "fs-hub [--socket PATH] [--data DIR]\nDefaults: $XDG_RUNTIME_DIR/freesynergy/hub.sock, $XDG_DATA_HOME/freesynergy/hub"
+                );
                 return;
             }
             other => {
