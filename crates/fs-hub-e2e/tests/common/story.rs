@@ -7,9 +7,11 @@ use std::time::Duration;
 
 use super::{Env, Prog, calendar, held, id, people, settle};
 use fs_hub_client::ChangeNotice;
+use fs_hub_client::HubSession;
 use fs_interfaces::events_capnp::items;
 use fs_interfaces::people_capnp::persons;
 use fs_store::traits::{ActivityLog, HistoryRetention};
+use fs_store::{Activity, ActivityId, StoredObject};
 use fs_store::{ActivityFilter, ActivityKind};
 use tokio::sync::mpsc::UnboundedReceiver;
 use uuid::Uuid;
@@ -94,4 +96,60 @@ impl Story {
         assert!(report.removed > 0);
         report
     }
+}
+
+/// A raw `Update` of the card as `copy` says, without a `before` image (what follows a purge).
+pub fn update_without_before(copy: &StoredObject) -> Activity {
+    Activity {
+        id: ActivityId::new(),
+        kind: ActivityKind::Update,
+        object: copy.envelope.id,
+        actor: String::new(),
+        at: chrono::Utc::now(),
+        target: None,
+        payload: serde_json::json!({"before": null, "after": copy}),
+        synced: false,
+    }
+}
+
+/// The card as the owner holds it, with the name and the mark given.
+pub async fn card(s: &Story, name: &str, marked: bool) -> StoredObject {
+    let mut copy = held(&s.p.store, s.ada).await.unwrap();
+    copy.envelope.name = name.into();
+    copy.envelope.sensitive = if marked {
+        vec!["pd:HealthRecord".into()]
+    } else {
+        vec![]
+    };
+    copy
+}
+
+/// What the hub lists for the card.
+pub async fn removal(s: &Story) -> fs_hub::Removal {
+    s.env
+        .hub
+        .core()
+        .marked()
+        .find(id(s.ada))
+        .await
+        .unwrap()
+        .expect("a removal is listed")
+}
+
+/// "contacts" marks Ada's card, which "people" wrote first; the reader loses its copy.
+pub async fn marked_by_contacts(s: &Story) -> HubSession {
+    let contacts = s.env.session(people::manifest("contacts")).await;
+    let out = contacts
+        .push(vec![update_without_before(&card(s, "Ada", true).await)])
+        .await
+        .unwrap();
+    assert_eq!(out.withheld, 1, "{out:?}");
+    s.settle().await;
+    assert!(held(&s.c.store, s.ada).await.is_none());
+    let r = removal(s).await;
+    assert!(
+        r.holds && r.by == "contacts" && r.origin == "people",
+        "{r:?}"
+    );
+    contacts
 }

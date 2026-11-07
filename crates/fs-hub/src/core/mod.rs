@@ -12,6 +12,7 @@ mod log_source;
 mod marked;
 mod marks_open;
 mod originals;
+mod passage;
 mod presence;
 mod proposals;
 mod registry;

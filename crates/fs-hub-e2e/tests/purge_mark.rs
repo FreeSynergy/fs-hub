@@ -5,7 +5,7 @@
 
 mod common;
 
-use common::story::Story;
+use common::story::{Story, removal};
 use common::{held, lift_mark, mark_sensitive, people};
 use fs_store::{Activity, ActivityId, ActivityKind};
 
@@ -34,6 +34,9 @@ async fn the_owner_lifts_a_mark_after_a_purge() {
                 held(&s.c.store, s.ada).await.is_some(),
                 "the copy is back at the reader"
             );
+            let copy = held(&s.c.store, s.ada).await.unwrap();
+            assert_eq!(copy.envelope.name, "Ada", "the owner's version");
+            assert!(!removal(&s).await.holds, "the mark is lifted");
             let again = s.p.session.sync_once(s.p.store.as_ref()).await.unwrap();
             assert_eq!(again.pushed, 0, "nothing stays unsynced");
         })

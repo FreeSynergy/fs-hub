@@ -12,7 +12,7 @@ use fs_hub_proto::{
 use fs_store::{Activity, ActivityId, ActivityKind, ChangeSet, ObjectId};
 
 use super::collector::ObjectCollector;
-use super::marked::Removal;
+use super::passage::{Passage, Proof};
 use super::proposals::origin_of;
 use crate::Result;
 
@@ -30,18 +30,6 @@ pub(super) enum Applied {
     Marked,
     /// This program first wrote the object, and another program's mark keeps it away for now.
     Held,
-}
-
-/// What a mark says to an unmarked put.
-enum Passage {
-    /// Nothing in the way.
-    Free,
-    /// The mark was lifted by another program than the owner: its old version stays out.
-    LiftedOnly,
-    /// The owner's write: it waits.
-    Held,
-    /// Refused.
-    Refused,
 }
 
 impl ObjectCollector {
@@ -101,7 +89,14 @@ impl ObjectCollector {
             return Ok(Applied::TooLarge(bytes));
         }
         match self
-            .passage(program, id, was_sensitive || says_unmarked)
+            .passage(
+                program,
+                id,
+                Proof {
+                    was_sensitive,
+                    says_unmarked,
+                },
+            )
             .await?
         {
             Passage::Free => {}
@@ -127,35 +122,6 @@ impl ObjectCollector {
             Applied::DoneSensitive
         } else {
             Applied::Done(logged)
-        })
-    }
-
-    /// While a mark holds: the owner and the program that set it can lift it, with a change that says it
-    /// was sensitive (or whose history is gone, then `after` unmarked says it), and nobody else. The owner goes on writing; that waits, it is not refused. A stale
-    /// copy from anywhere else must not bring the secret back. And when the mark lifts, the owner's object
-    /// must win, so what the marking program brings along stays out: it may be older than what the owner
-    /// holds, which the hub cannot tell.
-    async fn passage(&self, program: &str, id: ObjectId, lifts: bool) -> Result<Passage> {
-        let Some(removal) = self.marked.find(id).await?.filter(|r| r.holds) else {
-            return Ok(Passage::Free);
-        };
-        let is_owner = removal.origin == program;
-        if lifts && (is_owner || removal.by == program) {
-            let lifted = Removal {
-                holds: false,
-                ..removal
-            };
-            self.marked.record(id, &lifted).await?;
-            return Ok(if is_owner {
-                Passage::Free
-            } else {
-                Passage::LiftedOnly
-            });
-        }
-        Ok(if is_owner {
-            Passage::Held
-        } else {
-            Passage::Refused
         })
     }
 

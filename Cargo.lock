@@ -696,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "fs-hub"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "capnp",
@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "fs-hub-client"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "capnp",
  "capnp-rpc",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "fs-hub-e2e"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "capnp",
  "capnp-rpc",
@@ -761,7 +761,7 @@ dependencies = [
 
 [[package]]
 name = "fs-hub-proto"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "capnp",
  "chrono",
