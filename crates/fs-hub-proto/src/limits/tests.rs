@@ -6,10 +6,10 @@ use super::*;
 
 #[test]
 fn only_a_backend_or_key_failure_may_pass() {
-    assert!(is_transient(&fs_store::Error::Backend("disk".into())));
-    assert!(is_transient(&fs_store::Error::Key("locked".into())));
-    assert!(!is_transient(&fs_store::Error::Invalid("name".into())));
-    assert!(!is_transient(&fs_store::Error::Conflict("undo".into())));
+    assert!(is_transient(&fs_objects::Error::Backend("disk".into())));
+    assert!(is_transient(&fs_objects::Error::Key("locked".into())));
+    assert!(!is_transient(&fs_objects::Error::Invalid("name".into())));
+    assert!(!is_transient(&fs_objects::Error::Conflict("undo".into())));
 }
 
 #[test]

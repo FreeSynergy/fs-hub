@@ -2,7 +2,7 @@
 
 use fs_hub_proto::hub_capnp::session::push_params;
 use fs_hub_proto::{read_pushed_list, write_pushed_list};
-use fs_store::{Activity, ActivityId, ActivityKind, ChangeSet, Envelope, ObjectId, StoredObject};
+use fs_objects::{Activity, ActivityId, ActivityKind, ChangeSet, Envelope, ObjectId, StoredObject};
 
 fn activity(sensitive: bool) -> Activity {
     let mut e = Envelope::new("Note", "n");

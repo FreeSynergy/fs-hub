@@ -1,7 +1,7 @@
 //! Objects taken off the hub because a program marked them sensitive.
 //!
 //! The hub's log is append-only: the entries from before the mark still hold the old content, and the
-//! delete's `before` image holds it too. Until `fs-store` has a purge, that content stays on the hub's
+//! delete's `before` image holds it too. Until `fs-objects` has a purge, that content stays on the hub's
 //! disk, and this list is all that keeps it from going out. So `marks.db` is safety-relevant: reset it,
 //! and the old content can be delivered again.
 //!
@@ -17,8 +17,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fs_store::traits::{HistoryRetention, ObjectQuery, ObjectRepository};
-use fs_store::{ActivityId, Envelope, ObjectId, Query, Retention, StoredObject, TursoStore};
+use fs_objects::traits::{HistoryRetention, ObjectQuery, ObjectRepository};
+use fs_objects::{ActivityId, Envelope, ObjectId, Query, Retention, StoredObject, TursoStore};
 use serde::{Deserialize, Serialize};
 
 use crate::Result;

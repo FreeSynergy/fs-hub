@@ -10,7 +10,7 @@ use fs_hub_proto::{
     MAX_ACTIVITY_BYTES, PullNote, activity_weight, blank_for_delivery, blank_images,
     plain_delete_envelope,
 };
-use fs_store::{Activity, ActivityFilter, ActivityKind, Envelope};
+use fs_objects::{Activity, ActivityFilter, ActivityKind, Envelope};
 use serde_json::Value;
 
 use super::log_source::LogSource;

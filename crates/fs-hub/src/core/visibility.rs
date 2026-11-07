@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use fs_hub_proto::summary_of;
-use fs_store::traits::ObjectRepository;
-use fs_store::{Activity, Envelope};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{Activity, Envelope};
 
 use crate::Result;
 

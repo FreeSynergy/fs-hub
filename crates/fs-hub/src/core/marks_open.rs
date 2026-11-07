@@ -14,8 +14,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use fs_hub_proto::ScanSize;
-use fs_store::traits::{ActivityLog, ObjectQuery, ObjectRepository};
-use fs_store::{
+use fs_objects::traits::{ActivityLog, ObjectQuery, ObjectRepository};
+use fs_objects::{
     ActivityFilter, ActivityId, ActivityKind, Envelope, ObjectId, Query, StoredObject, TursoStore,
 };
 

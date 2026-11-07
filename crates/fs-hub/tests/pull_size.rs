@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, note, notes_manifest, session};
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, ActivityId, Envelope, ObjectId, StoredObject};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, ActivityId, Envelope, ObjectId, StoredObject};
 
 const NOTES: usize = 80;
 const MIB: usize = 1 << 20;

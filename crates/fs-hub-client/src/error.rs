@@ -19,7 +19,7 @@ pub enum Error {
     Proto(#[from] fs_hub_proto::Error),
     /// Local store failure.
     #[error("store: {0}")]
-    Store(#[from] fs_store::Error),
+    Store(#[from] fs_objects::Error),
     /// I/O failure.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),

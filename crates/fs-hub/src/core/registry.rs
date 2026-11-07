@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use fs_hub_proto::{CONTRACT_VERSION, Manifest, ProgramInfo};
-use fs_store::ObjectId;
+use fs_objects::ObjectId;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 
 use super::cursors::CursorRepository;

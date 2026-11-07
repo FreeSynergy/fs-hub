@@ -8,8 +8,8 @@ use std::sync::atomic::Ordering;
 use common::note;
 use common::parts::{Parts, pushed};
 use fs_hub::{ActivitySink, ActivitySource, Reach};
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{Activity, ActivityFilter, ActivityKind, OpenOptions, StoredObject, TursoStore};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{Activity, ActivityFilter, ActivityKind, OpenOptions, StoredObject, TursoStore};
 
 const OLD: &str = "old secret text";
 

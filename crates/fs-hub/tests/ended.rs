@@ -11,8 +11,8 @@ use common::raw::register;
 use common::{Env, note, notes_manifest, session};
 use fs_hub_client::Problem;
 use fs_hub_proto::common_capnp::change_listener;
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{Activity, ActivityFilter};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{Activity, ActivityFilter};
 use tokio::sync::mpsc;
 
 async fn log_of_notes(env: &Env, n: usize) -> Vec<Activity> {

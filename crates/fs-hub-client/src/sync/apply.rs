@@ -6,7 +6,7 @@
 //! marked sensitive here stays as it is: a mark is this program's own, nothing pulled undoes it.
 
 use fs_hub_proto::{keep_held_back, same_content};
-use fs_store::{Activity, ActivityKind, ChangeSet, ObjectId, Store};
+use fs_objects::{Activity, ActivityKind, ChangeSet, ObjectId, Store};
 
 use crate::{Error, Result};
 
@@ -32,7 +32,7 @@ pub(super) async fn apply(store: &dyn Store, a: Activity) -> Result<bool> {
         ));
     }
     let object = a.object;
-    let cs: ChangeSet = serde_json::from_value(a.payload).map_err(fs_store::Error::from)?;
+    let cs: ChangeSet = serde_json::from_value(a.payload).map_err(fs_objects::Error::from)?;
     let Some(mut obj) = cs.after else {
         return delete(store, object, &actor).await;
     };

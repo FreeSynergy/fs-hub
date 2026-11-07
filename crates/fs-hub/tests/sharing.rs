@@ -5,7 +5,7 @@ mod common;
 use common::{Env, calendar_manifest, contacts_manifest, person, session};
 use fs_calendar_core::{CalendarRepo, Event};
 use fs_people_core::PeopleRepo;
-use fs_store::{ActivityFilter, Query, Store};
+use fs_objects::{ActivityFilter, Query, Store};
 
 #[tokio::test]
 async fn programs_share_work_through_the_hub() {

@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use fs_hub_proto::Proposal;
-use fs_store::traits::{ActivityLog, ObjectQuery};
+use fs_objects::traits::{ActivityLog, ObjectQuery};
 
 use super::ProposalEngine;
 use super::candidates::by_identity_key;

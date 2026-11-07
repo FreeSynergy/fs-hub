@@ -11,7 +11,7 @@ mod shared_identity;
 
 use async_trait::async_trait;
 use fs_hub_proto::Proposal;
-use fs_store::traits::{ActivityLog, ObjectQuery};
+use fs_objects::traits::{ActivityLog, ObjectQuery};
 
 pub(crate) use candidates::origin_of;
 pub use shared_identity::SharedIdentity;

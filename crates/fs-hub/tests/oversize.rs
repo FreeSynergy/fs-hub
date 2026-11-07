@@ -6,8 +6,8 @@ use common::raw::register;
 use common::{Env, note, notes_manifest, session};
 use fs_hub_client::{MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES};
 use fs_interfaces::rpc::TOO_LARGE;
-use fs_store::ActivityFilter;
-use fs_store::traits::{ActivityLog, ObjectRepository};
+use fs_objects::ActivityFilter;
+use fs_objects::traits::{ActivityLog, ObjectRepository};
 
 const LARGE: usize = MAX_OBJECT_BYTES + (1 << 20);
 const ABOVE_A_DEFAULT_MESSAGE: usize = 70 << 20;

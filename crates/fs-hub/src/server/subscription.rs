@@ -13,7 +13,7 @@ use std::sync::Arc;
 use fs_hub_proto::common_capnp::{change_listener, subscription};
 use fs_hub_proto::{blank_for_delivery, images_of};
 use fs_interfaces::rpc::{ChangeSender, Notice, change_channel, forward};
-use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
+use fs_objects::{Activity, ActivityId, ActivityKind, ObjectId};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::task::JoinHandle;
 

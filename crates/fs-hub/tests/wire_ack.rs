@@ -4,7 +4,7 @@ mod common;
 
 use common::raw::register;
 use common::{Env, note, notes_manifest, session};
-use fs_store::traits::ObjectRepository;
+use fs_objects::traits::ObjectRepository;
 
 #[tokio::test]
 async fn summaries_give_no_right_to_ack() {

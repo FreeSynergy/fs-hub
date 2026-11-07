@@ -29,7 +29,7 @@ impl HubStatus {
     }
 
     /// `Some(report)` after a sync with the hub, `None` when there is no hub (nothing to do).
-    pub async fn sync_once(&self, store: &dyn fs_store::Store) -> Result<Option<SyncReport>> {
+    pub async fn sync_once(&self, store: &dyn fs_objects::Store) -> Result<Option<SyncReport>> {
         match self {
             Self::Connected(s) => Ok(Some(s.sync_once(store).await?)),
             Self::Absent => Ok(None),

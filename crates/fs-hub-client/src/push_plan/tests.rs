@@ -3,7 +3,7 @@
 //! Pattern: Specification checked by example.
 
 use fs_hub_proto::MAX_HUB_MESSAGE_BYTES;
-use fs_store::{ActivityId, ActivityKind, ChangeSet, StoredObject};
+use fs_objects::{ActivityId, ActivityKind, ChangeSet, StoredObject};
 
 use super::*;
 

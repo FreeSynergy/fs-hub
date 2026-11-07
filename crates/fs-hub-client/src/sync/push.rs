@@ -16,7 +16,7 @@
 //! is marked, and those entries go again on the next sync, until the mark lifts and they are taken.
 
 use fs_hub_proto::{ScanSize, images_of};
-use fs_store::{Activity, ActivityFilter, Store};
+use fs_objects::{Activity, ActivityFilter, Store};
 
 use super::apply::HUB_ACTOR_PREFIX;
 use super::report::SyncReport;

@@ -1,14 +1,14 @@
 //! Persistence of the per-program cursors.
 //!
 //! Pattern: Repository — `CursorRepository` is the interface (load all, save one); `StoreCursors`
-//! keeps the states as objects in the hub's small `state.db` (an `fs-store` `TursoStore`).
+//! keeps the states as objects in the hub's small `state.db` (an `fs-objects` `TursoStore`).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use async_trait::async_trait;
-use fs_store::traits::{HistoryRetention, ObjectQuery, ObjectRepository};
-use fs_store::{Envelope, Query, Retention, StoredObject, TursoStore};
+use fs_objects::traits::{HistoryRetention, ObjectQuery, ObjectRepository};
+use fs_objects::{Envelope, Query, Retention, StoredObject, TursoStore};
 
 use super::state::{ProgramState, now_ms};
 use crate::Result;
