@@ -160,3 +160,7 @@ A message above the reader's limit ends the whole connection with all its capabi
 * Should the hub keep objects whose type no other program reads (it does, as the central copy)?
 * Should proposals for a single program's own duplicates also be shown, or stay with the program?
 * Who stores "dismissed" proposals: the hub (shared) or the program (as contacts' open point says)?
+
+## After the sprint (strategy list, 2026-11-07)
+
+* `store_id` in the manifest (recognise two handles on the same copied file set through `SupportReport.instance`): not now. The identity makes a server recognisable, so it stays a deliberate decision; the benefit is named here.
