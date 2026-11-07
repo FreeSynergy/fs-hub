@@ -1,11 +1,12 @@
 //! Who may see which activity.
 //!
 //! Pattern: Specification — a predicate over (program, declared reads, activity): other programs'
-//! activities of a declared type, never one's own, never a redacted one (its type is unknown).
+//! activities of a declared type, never one's own, never a redacted one (its type is unknown), never a never-read type
+//! (`Relationship`), whatever an old manifest declared.
 
 use std::sync::Arc;
 
-use fs_hub_proto::{is_redacted, summary_of};
+use fs_hub_proto::{is_redacted, may_read, summary_of};
 use fs_store::traits::ObjectRepository;
 use fs_store::{Activity, Envelope};
 
@@ -46,7 +47,7 @@ impl Visibility {
             return Ok(None);
         }
         let envelope = self.envelope_of(a).await?;
-        Ok(envelope.filter(|e| reads.contains(&e.object_type)))
+        Ok(envelope.filter(|e| reads.contains(&e.object_type) && may_read(&e.object_type)))
     }
 
     /// Would `program` (with these `reads`) get this activity?

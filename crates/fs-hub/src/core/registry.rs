@@ -2,14 +2,14 @@
 //!
 //! Pattern: Strategy + Registry — `ProgramRegistry` is the interface the push/pull logic depends
 //! on; `StoredRegistry` keeps states in memory (one async mutex per program) and persists them
-//! through a `CursorRepository`.
+//! through a `CursorRepository`. A manifest that reads a never-read type (`Relationship`) is refused.
 
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use fs_hub_proto::{CONTRACT_VERSION, Manifest, ProgramInfo};
+use fs_hub_proto::{CONTRACT_VERSION, Manifest, ProgramInfo, may_read};
 use fs_store::ObjectId;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 
@@ -106,6 +106,11 @@ impl ProgramRegistry for StoredRegistry {
             return Err(Error::Invalid(format!(
                 "invalid program name {:?} (use [a-z0-9._-]+)",
                 manifest.program
+            )));
+        }
+        if let Some(t) = manifest.reads.iter().find(|t| !may_read(t)) {
+            return Err(Error::Invalid(format!(
+                "no program may read the type {t} (role privacy, ADR 0029)"
             )));
         }
         if manifest.contract_version != CONTRACT_VERSION {

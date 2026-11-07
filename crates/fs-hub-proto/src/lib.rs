@@ -27,6 +27,7 @@ mod convert;
 mod delivery;
 mod error;
 mod limits;
+mod never_read;
 mod redaction;
 mod types;
 
@@ -42,5 +43,6 @@ pub use limits::{
     MAX_ACTIVITY_BYTES, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, PageBudget, ScanSize,
     activity_weight, is_transient, json_len, reader_options, too_large,
 };
+pub use never_read::{NEVER_READ, may_read};
 pub use redaction::is_redacted;
 pub use types::*;
