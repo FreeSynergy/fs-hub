@@ -34,7 +34,12 @@ fn a_redacted_entry_tells_nothing() {
 
 #[test]
 fn a_real_delete_is_still_told() {
-    let gone = serde_json::json!({"before": {"envelope": {"id": ObjectId::new(), "type": "Note", "name": "n"}}, "after": null});
+    let object = fs_store::StoredObject::new(
+        fs_store::Envelope::new("Note", "n"),
+        "application/json",
+        serde_json::json!({}),
+    );
+    let gone = serde_json::json!({"before": object, "after": null});
     let notice = notice_of(&entry(ActivityKind::Delete, gone));
     assert!(matches!(notice, Ok(Some(Notice::Deleted(_)))), "{notice:?}");
 }
