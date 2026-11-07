@@ -35,4 +35,17 @@ impl HubStatus {
             Self::Absent => Ok(None),
         }
     }
+
+    /// See [`HubSession::sync_then_purge`]. Without a hub nothing can be synced, so nothing is purged:
+    /// [`crate::Error::NoHub`].
+    pub async fn sync_then_purge(
+        &self,
+        store: &dyn fs_store::Store,
+        object: fs_store::ObjectId,
+    ) -> Result<fs_store::PurgeReport> {
+        match self {
+            Self::Connected(s) => s.sync_then_purge(store, object).await,
+            Self::Absent => Err(crate::Error::NoHub),
+        }
+    }
 }

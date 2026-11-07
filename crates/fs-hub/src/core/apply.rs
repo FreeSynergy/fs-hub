@@ -9,7 +9,7 @@ use fs_hub_proto::{
     MAX_OBJECT_BYTES, Manifest, is_redacted, json_len, keep_held_back, same_as_written,
     same_content,
 };
-use fs_store::{Activity, ActivityId, ChangeSet, ObjectId};
+use fs_store::{Activity, ActivityId, ActivityKind, ChangeSet, ObjectId};
 
 use super::collector::ObjectCollector;
 use super::marked::Removal;
@@ -73,6 +73,9 @@ impl ObjectCollector {
             .before
             .as_ref()
             .is_some_and(|o| !o.envelope.sensitive.is_empty());
+        // A change that has no `before` image at all is the current copy of an object whose history was
+        // purged (`fs-hub-client` `sync/redacted.rs`): the owner's state is then all there is to go by.
+        let says_unmarked = a.kind == ActivityKind::Update && cs.before.is_none();
         let Some(mut obj) = cs.after else {
             return self.apply_delete(manifest, a.object, was_sensitive).await;
         };
@@ -97,7 +100,10 @@ impl ObjectCollector {
         if bytes > MAX_OBJECT_BYTES {
             return Ok(Applied::TooLarge(bytes));
         }
-        match self.passage(program, id, was_sensitive).await? {
+        match self
+            .passage(program, id, was_sensitive || says_unmarked)
+            .await?
+        {
             Passage::Free => {}
             Passage::LiftedOnly => return Ok(Applied::Same),
             Passage::Held => return Ok(Applied::Held),
@@ -125,16 +131,16 @@ impl ObjectCollector {
     }
 
     /// While a mark holds: the owner and the program that set it can lift it, with a change that says it
-    /// was sensitive, and nobody else. The owner goes on writing; that waits, it is not refused. A stale
+    /// was sensitive (or whose history is gone, then `after` unmarked says it), and nobody else. The owner goes on writing; that waits, it is not refused. A stale
     /// copy from anywhere else must not bring the secret back. And when the mark lifts, the owner's object
     /// must win, so what the marking program brings along stays out: it may be older than what the owner
     /// holds, which the hub cannot tell.
-    async fn passage(&self, program: &str, id: ObjectId, was_sensitive: bool) -> Result<Passage> {
+    async fn passage(&self, program: &str, id: ObjectId, lifts: bool) -> Result<Passage> {
         let Some(removal) = self.marked.find(id).await?.filter(|r| r.holds) else {
             return Ok(Passage::Free);
         };
         let is_owner = removal.origin == program;
-        if was_sensitive && (is_owner || removal.by == program) {
+        if lifts && (is_owner || removal.by == program) {
             let lifted = Removal {
                 holds: false,
                 ..removal

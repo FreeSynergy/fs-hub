@@ -31,6 +31,9 @@ pub enum Error {
         /// What it did until then.
         report: Box<crate::SyncReport>,
     },
+    /// The object has log entries the hub has not taken; purging them would lose them.
+    #[error("object {0:?} has unsynced log entries: not purged")]
+    NotSynced(fs_store::ObjectId),
     /// The hub answered something the protocol does not allow.
     #[error("protocol: {0}")]
     Protocol(String),

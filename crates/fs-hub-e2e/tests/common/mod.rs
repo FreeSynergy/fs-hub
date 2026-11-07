@@ -7,6 +7,7 @@
 
 pub mod calendar;
 pub mod people;
+pub mod story;
 pub mod tasks;
 
 use std::path::Path;
@@ -126,6 +127,13 @@ pub fn id(u: Uuid) -> ObjectId {
 pub async fn mark_sensitive(store: &TursoStore, object: Uuid, who: &str) {
     let mut o: StoredObject = store.get(id(object)).await.unwrap().unwrap();
     o.envelope.sensitive = vec!["pd:HealthRecord".into()];
+    store.put(o, who).await.unwrap();
+}
+
+/// The program lifts its own object's mark again, as its person would.
+pub async fn lift_mark(store: &TursoStore, object: Uuid, who: &str) {
+    let mut o: StoredObject = store.get(id(object)).await.unwrap().unwrap();
+    o.envelope.sensitive.clear();
     store.put(o, who).await.unwrap();
 }
 

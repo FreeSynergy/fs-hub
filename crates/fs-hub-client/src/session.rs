@@ -105,4 +105,15 @@ impl HubSession {
     pub async fn sync_once(&self, store: &dyn fs_store::Store) -> Result<crate::SyncReport> {
         crate::sync::sync_once(self, store).await
     }
+
+    /// Sync, then `purge_object` (ADR 0029) if every log entry of `object` is with the hub. Programs call
+    /// this and never `purge_object` themselves: a purge before the sync would delete a mark the hub has not
+    /// heard of. Fail closed: if the sync fails, or entries of the object stay unsynced, nothing is purged.
+    pub async fn sync_then_purge(
+        &self,
+        store: &dyn fs_store::Store,
+        object: fs_store::ObjectId,
+    ) -> Result<fs_store::PurgeReport> {
+        crate::sync::sync_then_purge(self, store, object).await
+    }
 }

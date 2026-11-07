@@ -8,6 +8,7 @@ mod apply;
 mod apply_redacted;
 mod once;
 mod pull;
+mod purge;
 mod push;
 mod redacted;
 #[cfg(test)]
@@ -15,4 +16,5 @@ mod redacted_tests;
 mod report;
 
 pub(crate) use once::sync_once;
+pub(crate) use purge::sync_then_purge;
 pub use report::SyncReport;
