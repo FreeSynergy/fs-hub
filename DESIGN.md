@@ -170,3 +170,5 @@ A message above the reader's limit ends the whole connection with all its capabi
 * **Race between the mark check and the write.** In `apply_one`, `passage` (check) and the following `put` are not one step, and the lock is per program (`registry.rs`): two programs pushing the same object at once (a mark and an owner's update) can pass the check on the old state. Partly there before 0.3.0. Needs a lock per object or one transaction over marks and objects.
 * **Explicit lift with proof** for the owner when another program marked its object (a hub call); until then such an object stays off the hub while the owner writes on.
 * **Program names are not authenticated** (ADR 0035): everything above that says "the owner" or "the marking program" is by the name in the manifest.
+
+> **Limit of the rule "no program locks the owner out for good" (review of 0.3.1):** after a purge the owner cannot lift a mark another program set; it waits (`Held`, its own data stays untouched, nothing is lost) until the marking program lifts it. An explicit lift with proof for the owner comes after the sprint.
