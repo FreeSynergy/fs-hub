@@ -10,6 +10,8 @@ mod once;
 mod pull;
 mod push;
 mod redacted;
+#[cfg(test)]
+mod redacted_tests;
 mod report;
 
 pub(crate) use once::sync_once;

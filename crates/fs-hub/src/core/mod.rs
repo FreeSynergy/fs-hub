@@ -17,6 +17,8 @@ mod proposals;
 mod registry;
 mod state;
 mod visibility;
+#[cfg(test)]
+mod visibility_tests;
 mod way_out;
 
 pub use activity::{ActivitySink, ActivitySource};

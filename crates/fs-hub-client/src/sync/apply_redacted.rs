@@ -1,4 +1,6 @@
 //! A pulled entry without state deletes nothing here (test of `apply`).
+//!
+//! Pattern: none (tests of `apply` for entries without state).
 
 use fs_store::traits::ObjectRepository;
 use fs_store::{Activity, ActivityId, ActivityKind, Envelope, StoredObject, TursoStore};

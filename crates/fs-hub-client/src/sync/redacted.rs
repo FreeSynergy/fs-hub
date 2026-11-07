@@ -22,6 +22,3 @@ pub(super) fn with_current_copy(mut a: Activity, current: Option<&StoredObject>)
     a.payload = serde_json::json!({ "before": null, "after": current });
     a
 }
-
-#[cfg(test)]
-mod tests;

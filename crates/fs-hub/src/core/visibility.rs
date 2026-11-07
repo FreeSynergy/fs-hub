@@ -55,6 +55,3 @@ impl Visibility {
         Ok(self.visible_envelope(program, reads, a).await?.is_some())
     }
 }
-
-#[cfg(test)]
-mod tests;

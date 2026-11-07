@@ -1,8 +1,12 @@
 //! A redacted entry is visible to nobody: its type is unknown.
+//!
+//! Pattern: none (tests of `Visibility`).
 
-use fs_store::{ActivityId, ActivityKind, ObjectId, TursoStore};
+use std::sync::Arc;
 
-use super::*;
+use fs_store::{Activity, ActivityId, ActivityKind, ObjectId, TursoStore};
+
+use super::visibility::Visibility;
 
 #[tokio::test]
 async fn a_redacted_entry_is_visible_to_nobody() {

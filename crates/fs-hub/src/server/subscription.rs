@@ -122,7 +122,7 @@ async fn watch(
 
 /// The notice of an activity, blanked like everything leaving the hub. A log-only activity changes no
 /// object: nothing to tell.
-fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
+pub(super) fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
     if !a.kind.changes_state() || is_redacted(a) {
         return Ok(None); // a redacted entry is no deletion: tell nothing
     }
@@ -138,6 +138,3 @@ fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
         (_, None) => Notice::Deleted(a.object),
     }))
 }
-
-#[cfg(test)]
-mod tests;

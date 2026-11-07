@@ -9,6 +9,8 @@ mod listen;
 mod session_service;
 mod socket;
 mod subscription;
+#[cfg(test)]
+mod subscription_tests;
 
 pub use listen::serve;
 pub use socket::bind_socket;

@@ -1,8 +1,10 @@
 //! A redacted entry is told what the object is now; nothing else changes.
+//!
+//! Pattern: none (tests of `with_current_copy`).
 
-use fs_store::{ActivityKind, Envelope, ObjectId, StoredObject};
+use fs_store::{Activity, ActivityKind, Envelope, ObjectId, StoredObject};
 
-use super::*;
+use super::redacted::with_current_copy;
 
 fn entry(kind: ActivityKind, payload: serde_json::Value) -> Activity {
     Activity {

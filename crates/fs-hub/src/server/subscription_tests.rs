@@ -1,8 +1,11 @@
 //! A redacted entry is never told, least of all as "deleted".
+//!
+//! Pattern: none (tests of `notice_of`).
 
-use fs_store::{ActivityId, ObjectId};
+use fs_interfaces::rpc::Notice;
+use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
 
-use super::*;
+use super::subscription::notice_of;
 
 fn entry(kind: ActivityKind, payload: serde_json::Value) -> Activity {
     Activity {
