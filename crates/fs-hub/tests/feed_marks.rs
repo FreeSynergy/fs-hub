@@ -10,7 +10,7 @@ use capnp_rpc::new_client;
 use common::raw::register;
 use common::{Env, note, notes_manifest, session};
 use fs_hub_proto::common_capnp::{change, change_listener};
-use fs_store::traits::ObjectRepository;
+use fs_objects::traits::ObjectRepository;
 use tokio::sync::{Notify, mpsc};
 
 /// A few of these fill the stream's window of 64 KiB.

@@ -2,7 +2,7 @@
 //!
 //! Pattern: Adapter — `Proposal` <-> `hub.capnp` `Proposal`.
 
-use fs_store::ObjectId;
+use fs_objects::ObjectId;
 
 use super::ids::{read_uuid, write_uuid};
 use super::lists::{set_text_list, text_list};

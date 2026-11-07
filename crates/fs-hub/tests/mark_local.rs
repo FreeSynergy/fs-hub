@@ -3,9 +3,9 @@
 mod common;
 
 use common::{Env, note, notes_manifest, only_reads_notes, session};
-use fs_store::StoredObject;
-use fs_store::traits::ObjectRepository;
-use fs_store::{ActivityFilter, ObjectId};
+use fs_objects::StoredObject;
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{ActivityFilter, ObjectId};
 
 fn marked(mut o: StoredObject) -> StoredObject {
     o.envelope.sensitive = vec!["pd:Health".into()];

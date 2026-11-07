@@ -6,7 +6,7 @@ mod common;
 use common::{Env, config, note, notes_manifest, session};
 use fs_hub::Daemon;
 use fs_hub_client::MAX_OBJECT_BYTES;
-use fs_store::{ActivityFilter, ObjectId, Store, StoredObject};
+use fs_objects::{ActivityFilter, ObjectId, Store, StoredObject};
 
 const MARKERS_OLD: &str = "the marking program's old copy";
 

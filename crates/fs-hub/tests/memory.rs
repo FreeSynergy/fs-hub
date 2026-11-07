@@ -5,8 +5,8 @@ mod common;
 
 use common::binary::{Hub, connect, kill, start};
 use common::note;
-use fs_store::TursoStore;
-use fs_store::traits::ObjectRepository;
+use fs_objects::TursoStore;
+use fs_objects::traits::ObjectRepository;
 
 const MIB: usize = 1 << 20;
 const NOTES: usize = 32;

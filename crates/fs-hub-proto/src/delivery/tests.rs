@@ -2,7 +2,7 @@
 //!
 //! Pattern: Specification checked by example.
 
-use fs_store::Blob;
+use fs_objects::Blob;
 
 use super::*;
 
@@ -45,7 +45,7 @@ fn blanking_images_leaves_the_content_and_takes_the_rest() {
     blank_images(&mut payload);
     assert!(!payload.to_string().contains("ada"), "{payload}");
     assert!(!payload.to_string().contains("QmNjOiBhZGE"), "the original");
-    let back: fs_store::ChangeSet = serde_json::from_value(payload).unwrap();
+    let back: fs_objects::ChangeSet = serde_json::from_value(payload).unwrap();
     let before = back.before.unwrap();
     assert_eq!(before.content["text"], 1);
     assert_eq!(before.index["kind"], ["note"]);

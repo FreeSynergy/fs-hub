@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use fs_hub_proto::{Problem, PushOutcome, Pushed, too_large};
-use fs_store::traits::{ActivityLog, ObjectRepository};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
 
 use super::activity::ActivitySink;
 use super::apply::Applied;

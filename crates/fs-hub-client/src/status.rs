@@ -29,7 +29,7 @@ impl HubStatus {
     }
 
     /// `Some(report)` after a sync with the hub, `None` when there is no hub (nothing to do).
-    pub async fn sync_once(&self, store: &dyn fs_store::Store) -> Result<Option<SyncReport>> {
+    pub async fn sync_once(&self, store: &dyn fs_objects::Store) -> Result<Option<SyncReport>> {
         match self {
             Self::Connected(s) => Ok(Some(s.sync_once(store).await?)),
             Self::Absent => Ok(None),
@@ -40,9 +40,9 @@ impl HubStatus {
     /// [`crate::Error::NoHub`].
     pub async fn sync_then_purge(
         &self,
-        store: &dyn fs_store::Store,
-        object: fs_store::ObjectId,
-    ) -> Result<fs_store::PurgeReport> {
+        store: &dyn fs_objects::Store,
+        object: fs_objects::ObjectId,
+    ) -> Result<fs_objects::PurgeReport> {
         match self {
             Self::Connected(s) => s.sync_then_purge(store, object).await,
             Self::Absent => Err(crate::Error::NoHub),

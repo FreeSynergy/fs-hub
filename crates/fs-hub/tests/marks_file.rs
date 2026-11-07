@@ -5,8 +5,8 @@ mod common;
 
 use common::{Env, config, note, notes_manifest, session};
 use fs_hub::{Daemon, Error};
-use fs_store::traits::ObjectRepository;
-use fs_store::{ActivityKind, TursoStore};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{ActivityKind, TursoStore};
 
 const OLD: &str = "old secret text";
 

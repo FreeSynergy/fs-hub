@@ -4,7 +4,7 @@ mod common;
 
 use common::{Env, note, notes_manifest, session};
 use fs_hub_client::MAX_HUB_MESSAGE_BYTES;
-use fs_store::traits::ObjectRepository;
+use fs_objects::traits::ObjectRepository;
 
 /// An entry from before these limits, of 80 MiB: only the raised limit lets the client read it.
 #[tokio::test]

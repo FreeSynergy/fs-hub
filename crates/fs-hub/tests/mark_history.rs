@@ -4,8 +4,8 @@
 mod common;
 
 use common::{Env, note, notes_manifest, session};
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, ActivityKind, StoredObject};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, ActivityKind, StoredObject};
 
 const OLD: &str = "old secret text";
 

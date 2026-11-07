@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use fs_hub_proto::{Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, Pushed};
 use fs_interfaces::rpc::prepare_data_dir;
-use fs_store::traits::{ActivityLog, ChangeFeed, ObjectQuery, ObjectRepository};
-use fs_store::{Activity, ActivityId, ObjectId, Store, StoredObject, TursoStore};
+use fs_objects::traits::{ActivityLog, ChangeFeed, ObjectQuery, ObjectRepository};
+use fs_objects::{Activity, ActivityId, ObjectId, Store, StoredObject, TursoStore};
 use tokio::sync::broadcast;
 
 use super::activity::{ActivitySink, ActivitySource};

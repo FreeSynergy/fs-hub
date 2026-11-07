@@ -7,7 +7,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-fs-store.workspace = true
+fs-objects.workspace = true
 fs-hub-proto.workspace = true
 fs-interfaces.workspace = true
 capnp.workspace = true

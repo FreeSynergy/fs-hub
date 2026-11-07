@@ -5,8 +5,8 @@
 
 use std::collections::BTreeMap;
 
-use fs_store::traits::{ActivityLog, ObjectQuery};
-use fs_store::{ActivityFilter, ObjectId, Query};
+use fs_objects::traits::{ActivityLog, ObjectQuery};
+use fs_objects::{ActivityFilter, ObjectId, Query};
 
 use crate::Result;
 

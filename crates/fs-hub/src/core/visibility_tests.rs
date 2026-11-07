@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use fs_store::{Activity, ActivityId, ActivityKind, ObjectId, TursoStore};
+use fs_objects::{Activity, ActivityId, ActivityKind, ObjectId, TursoStore};
 
 use super::visibility::Visibility;
 
@@ -40,12 +40,12 @@ async fn a_redacted_entry_is_visible_to_nobody() {
 async fn a_relationship_is_visible_to_nobody_whatever_the_manifest_says() {
     let store = Arc::new(TursoStore::open_in_memory().await.unwrap());
     let rule = Visibility::new(store);
-    let object = fs_store::StoredObject::new(
-        fs_store::Envelope::new("Relationship", "r"),
+    let object = fs_objects::StoredObject::new(
+        fs_objects::Envelope::new("Relationship", "r"),
         "application/json",
         serde_json::json!({}),
     );
-    let cs = fs_store::ChangeSet {
+    let cs = fs_objects::ChangeSet {
         before: None,
         after: Some(object),
     };

@@ -1,12 +1,12 @@
 //! What goes to the hub for an entry that carries no state.
 //!
-//! Pattern: Template method (one step of the push) — after `purge_object` (fs-store 0.4) later writes of
+//! Pattern: Template method (one step of the push) — after `purge_object` (fs-objects 0.4) later writes of
 //! an object are logged without images. That is not a deletion. The entry keeps its id (the hub's
 //! acknowledgement counts ids), but says what the object is now: the current copy, or a delete when the
 //! store no longer has it. The marked and the sensitive rules of `push.rs` then apply to that as usual.
 
 use fs_hub_proto::is_redacted;
-use fs_store::{Activity, ActivityKind, StoredObject};
+use fs_objects::{Activity, ActivityKind, StoredObject};
 
 /// `a` as the hub can read it: untouched unless it is redacted, then the images are the store's
 /// `current` copy (as `after`) and the kind says what that means.

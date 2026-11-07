@@ -1,16 +1,16 @@
 //! End-to-end: an entry without state (purged history) deletes nothing at the hub, is not told as a
-//! deletion, and a real delete still removes the copy. Sent raw, since fs-store 0.2 cannot purge.
+//! deletion, and a real delete still removes the copy. Sent raw, since fs-objects 0.2 cannot purge.
 
 mod common;
 
 use common::raw::register;
 use common::{Env, note, notes_manifest, session};
 use fs_hub_client::ChangeNotice;
-use fs_store::traits::ObjectRepository;
-use fs_store::{Activity, ActivityId, ActivityKind};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{Activity, ActivityId, ActivityKind};
 use std::time::Duration;
 
-fn redacted_entry(kind: ActivityKind, object: fs_store::ObjectId) -> Activity {
+fn redacted_entry(kind: ActivityKind, object: fs_objects::ObjectId) -> Activity {
     Activity {
         id: ActivityId::new(),
         kind,

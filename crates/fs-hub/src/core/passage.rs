@@ -3,7 +3,7 @@
 //! Pattern: Specification — the rule is one function of the removal on the list, the program and what
 //! its change proves; nothing else decides.
 
-use fs_store::ObjectId;
+use fs_objects::ObjectId;
 
 use super::collector::ObjectCollector;
 use super::marked::Removal;

@@ -8,8 +8,8 @@ mod common;
 
 use common::story::Story;
 use common::{held, id, mark_sensitive};
-use fs_store::ActivityFilter;
-use fs_store::traits::ActivityLog;
+use fs_objects::ActivityFilter;
+use fs_objects::traits::ActivityLog;
 
 async fn entries_of(s: &Story) -> usize {
     let filter = ActivityFilter {

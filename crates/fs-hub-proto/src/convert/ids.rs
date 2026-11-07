@@ -3,7 +3,7 @@
 //! Pattern: Adapter — `Uuid`/`ActivityId` and millisecond timestamps between Rust and the foreign Cap'n Proto structs (all-zero uuid = none).
 
 use chrono::{DateTime, TimeZone, Utc};
-use fs_store::ActivityId;
+use fs_objects::ActivityId;
 
 pub use fs_interfaces::rpc::{read_uuid, write_uuid};
 

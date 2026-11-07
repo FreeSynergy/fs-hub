@@ -6,8 +6,8 @@ mod common;
 use common::{Env, config, note, notes_manifest, session};
 use fs_hub::Daemon;
 use fs_hub_client::MAX_OBJECT_BYTES;
-use fs_store::traits::ObjectRepository;
-use fs_store::{ActivityKind, StoredObject};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{ActivityKind, StoredObject};
 
 const OLD: &str = "old secret text";
 

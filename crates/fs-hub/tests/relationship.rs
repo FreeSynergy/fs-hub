@@ -4,8 +4,8 @@ mod common;
 
 use common::{Env, contacts_manifest, note, notes_manifest, session};
 use fs_hub_client::{Manifest, connect_at};
-use fs_store::traits::{ObjectQuery, ObjectRepository};
-use fs_store::{Envelope, StoredObject};
+use fs_objects::traits::{ObjectQuery, ObjectRepository};
+use fs_objects::{Envelope, StoredObject};
 
 fn assignment(name: &str) -> StoredObject {
     let content = serde_json::json!({"type": "Relationship", "relationship": "customer"});
@@ -54,7 +54,7 @@ async fn a_role_assignment_reaches_no_reader() {
                 "the reader reads Note, and nobody wrote one"
             );
             let all = reader_store
-                .query(&fs_store::Query::new().of_type("Relationship"))
+                .query(&fs_objects::Query::new().of_type("Relationship"))
                 .await
                 .unwrap();
             assert!(all.is_empty());

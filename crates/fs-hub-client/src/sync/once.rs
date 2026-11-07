@@ -3,7 +3,7 @@
 //! Pattern: Template method — fixed skeleton (push all unsynced, pull all, push what is left), with the
 //! steps in their own files. Whatever it learned comes along when it stops.
 
-use fs_store::Store;
+use fs_objects::Store;
 
 use super::report::SyncReport;
 use super::{pull, push};

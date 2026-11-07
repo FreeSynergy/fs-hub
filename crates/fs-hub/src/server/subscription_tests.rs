@@ -3,7 +3,7 @@
 //! Pattern: none (tests of `notice_of`).
 
 use fs_interfaces::rpc::Notice;
-use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
+use fs_objects::{Activity, ActivityId, ActivityKind, ObjectId};
 
 use super::subscription::notice_of;
 
@@ -37,8 +37,8 @@ fn a_redacted_entry_tells_nothing() {
 
 #[test]
 fn a_real_delete_is_still_told() {
-    let object = fs_store::StoredObject::new(
-        fs_store::Envelope::new("Note", "n"),
+    let object = fs_objects::StoredObject::new(
+        fs_objects::Envelope::new("Note", "n"),
         "application/json",
         serde_json::json!({}),
     );

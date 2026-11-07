@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, note, notes_manifest, session};
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, StoredObject};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, StoredObject};
 
 fn with_text(mut o: StoredObject, text: &str) -> StoredObject {
     o.content["text"] = serde_json::json!(text);

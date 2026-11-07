@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, contacts_manifest, person, session};
+use fs_objects::{Query, Store};
 use fs_people_core::{ListFilter, PeopleRepo};
-use fs_store::{Query, Store};
 
 #[tokio::test]
 async fn proposals_skip_sensitive_data_and_same_program() {

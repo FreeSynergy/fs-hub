@@ -14,7 +14,7 @@ name = "fs-hub"
 path = "src/main.rs"
 
 [dependencies]
-fs-store.workspace = true
+fs-objects.workspace = true
 fs-hub-proto.workspace = true
 fs-interfaces.workspace = true
 capnp.workspace = true
@@ -32,7 +32,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["f
 
 [dev-dependencies]
 fs-hub-client = { path = "../fs-hub-client" }
-fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.5.0" }
-fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.6.0" }
+fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.6.0" }
+fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.7.0" }
 tempfile = "3"
 tokio = { version = "1", features = ["full"] }

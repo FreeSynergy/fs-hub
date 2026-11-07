@@ -2,7 +2,7 @@
 //!
 //! Pattern: Value objects (+ Builder-style setters on `Manifest`) — what callers handle instead of wire structs.
 
-use fs_store::{ActivityId, Timestamp};
+use fs_objects::{ActivityId, Timestamp};
 use serde::{Deserialize, Serialize};
 
 use crate::Problem;
@@ -81,9 +81,9 @@ pub struct ProgramInfo {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Proposal {
     /// First object.
-    pub a: fs_store::ObjectId,
+    pub a: fs_objects::ObjectId,
     /// Second object.
-    pub b: fs_store::ObjectId,
+    pub b: fs_objects::ObjectId,
     /// Name of the first.
     pub name_a: String,
     /// Name of the second.
@@ -129,7 +129,7 @@ impl PushOutcome {
 #[derive(Clone, Debug)]
 pub struct Pushed {
     /// The entry of the program's log.
-    pub activity: fs_store::Activity,
+    pub activity: fs_objects::Activity,
     /// When the program did it; never set for a sensitive object (ADR 0029).
     pub original_at: Option<Timestamp>,
 }
@@ -138,7 +138,7 @@ pub struct Pushed {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PullNote {
     /// Summary of the object (after image, else before image, else the object the hub holds).
-    pub envelope: fs_store::Envelope,
+    pub envelope: fs_objects::Envelope,
     /// When the program did it; `Activity::at` is when the hub applied it.
     pub original_at: Option<Timestamp>,
 }
@@ -149,7 +149,7 @@ pub struct PullBatch {
     /// Activities of other programs. A `Null` payload on a state-changing kind means the content did
     /// not come: too large for any message, or the delete of an object marked later. Log-only entries
     /// come without their payload: it is not delivered to other programs (provisional).
-    pub activities: Vec<fs_store::Activity>,
+    pub activities: Vec<fs_objects::Activity>,
     /// The note of each activity, by its id.
     pub notes: std::collections::BTreeMap<ActivityId, PullNote>,
     /// The hub scanned up to here; acknowledge with `ack` once the content is applied.
@@ -164,7 +164,7 @@ pub enum ChangeNotice {
     /// An object was created.
     Created {
         /// Object id.
-        id: fs_store::ObjectId,
+        id: fs_objects::ObjectId,
         /// AS2 type.
         object_type: String,
         /// Display name.
@@ -173,7 +173,7 @@ pub enum ChangeNotice {
     /// An object was updated.
     Updated {
         /// Object id.
-        id: fs_store::ObjectId,
+        id: fs_objects::ObjectId,
         /// AS2 type.
         object_type: String,
         /// Display name.
@@ -182,7 +182,7 @@ pub enum ChangeNotice {
     /// An object was deleted.
     Deleted {
         /// Object id.
-        id: fs_store::ObjectId,
+        id: fs_objects::ObjectId,
     },
     /// The feed ended without being asked to: changes may have been missed. To go on, subscribe again
     /// and catch up with `pull`, in that order. Nothing follows this.

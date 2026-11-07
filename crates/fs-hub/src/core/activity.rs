@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use fs_hub_proto::{PullBatch, PushOutcome, Pushed};
-use fs_store::{Activity, ActivityId, ObjectId};
+use fs_objects::{Activity, ActivityId, ObjectId};
 use tokio::sync::broadcast;
 
 use crate::Result;

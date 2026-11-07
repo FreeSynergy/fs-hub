@@ -16,7 +16,7 @@ use common::{note, notes_manifest};
 use fs_hub::{HubCore, ProposalEngine, server};
 use fs_hub_client::{ChangeNotice, HubSession, HubStatus, Proposal, connect_at};
 use fs_interfaces::rpc::FEED_ENDED_PROBLEM_TYPE;
-use fs_store::traits::{ActivityLog, ObjectQuery};
+use fs_objects::traits::{ActivityLog, ObjectQuery};
 use tokio::sync::oneshot;
 
 /// More changes than the store's change feed holds (`subscribe_capacity`).
