@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/fs-hub-proto", "crates/fs-hub", "crates/fs-hub-client"]
+members = ["crates/fs-hub-proto", "crates/fs-hub", "crates/fs-hub-client", "crates/fs-hub-e2e"]
 
 [workspace.package]
 version = "0.3.0"
