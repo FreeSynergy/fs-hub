@@ -11,6 +11,8 @@
 //!   not go, and neither does one about an object the store no longer has, as nobody can say it was not
 //!   sensitive; both count as withheld.
 //!
+//! * an entry without state (purged history) is not a deletion; the current copy goes in its place.
+//!
 //! The hub may acknowledge less than it was sent: it holds back this program's writes of an object
 //! another program's mark keeps away. `mark_synced` takes a prefix of the log, so from there on nothing
 //! is marked, and those entries go again on the next sync, until the mark lifts and they are taken.
@@ -19,6 +21,7 @@ use fs_hub_proto::{ScanSize, images_of};
 use fs_store::{Activity, ActivityFilter, Store};
 
 use super::apply::HUB_ACTOR_PREFIX;
+use super::redacted::with_current_copy;
 use super::report::SyncReport;
 use crate::push_plan::stub_images;
 use crate::{HubSession, Result};
@@ -26,6 +29,7 @@ use crate::{HubSession, Result};
 /// What may go of `a`, looking at the object as it is now.
 async fn what_may_go(store: &dyn Store, a: Activity) -> Result<Option<Activity>> {
     let current = store.get(a.object).await?;
+    let a = with_current_copy(a, current.as_ref());
     let marked = current
         .as_ref()
         .is_some_and(|o| !o.envelope.sensitive.is_empty());

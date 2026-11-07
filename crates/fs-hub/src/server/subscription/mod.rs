@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use fs_hub_proto::common_capnp::{change_listener, subscription};
-use fs_hub_proto::{blank_for_delivery, images_of};
+use fs_hub_proto::{blank_for_delivery, images_of, is_redacted};
 use fs_interfaces::rpc::{ChangeSender, Notice, change_channel, forward};
 use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
 use tokio::sync::broadcast::{self, error::RecvError};
@@ -123,8 +123,8 @@ async fn watch(
 /// The notice of an activity, blanked like everything leaving the hub. A log-only activity changes no
 /// object: nothing to tell.
 fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
-    if !a.kind.changes_state() {
-        return Ok(None);
+    if !a.kind.changes_state() || is_redacted(a) {
+        return Ok(None); // a redacted entry is no deletion: tell nothing
     }
     let (_, after) =
         images_of(a).ok_or_else(|| format!("{} {}: no images", a.kind.as_str(), a.id))?;
@@ -138,3 +138,6 @@ fn notice_of(a: &Activity) -> Result<Option<Notice>, String> {
         (_, None) => Notice::Deleted(a.object),
     }))
 }
+
+#[cfg(test)]
+mod tests;

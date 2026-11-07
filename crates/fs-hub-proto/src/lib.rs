@@ -27,6 +27,7 @@ mod convert;
 mod delivery;
 mod error;
 mod limits;
+mod redaction;
 mod types;
 
 pub use content::{same_as_written, same_content};
@@ -41,4 +42,5 @@ pub use limits::{
     MAX_ACTIVITY_BYTES, MAX_HUB_MESSAGE_BYTES, MAX_OBJECT_BYTES, PageBudget, ScanSize,
     activity_weight, is_transient, json_len, reader_options, too_large,
 };
+pub use redaction::is_redacted;
 pub use types::*;

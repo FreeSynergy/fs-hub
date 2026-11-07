@@ -5,7 +5,7 @@
 //! as this store has it: an update from a reader must not take the owner's values away. And what is
 //! marked sensitive here stays as it is: a mark is this program's own, nothing pulled undoes it.
 
-use fs_hub_proto::{keep_held_back, same_content};
+use fs_hub_proto::{is_redacted, keep_held_back, same_content};
 use fs_store::{Activity, ActivityKind, ChangeSet, ObjectId, Store};
 
 use crate::{Error, Result};
@@ -15,6 +15,9 @@ pub(super) const HUB_ACTOR_PREFIX: &str = "hub:";
 
 /// Apply one pulled activity to the program's store. Returns whether that changed the store.
 pub(super) async fn apply(store: &dyn Store, a: Activity) -> Result<bool> {
+    if is_redacted(&a) {
+        return Ok(false); // no state, no deletion: this store keeps what it has
+    }
     let actor = format!("{HUB_ACTOR_PREFIX}{}", a.actor);
     if a.payload.is_null() && a.kind == ActivityKind::Delete {
         return delete(store, a.object, &actor).await;

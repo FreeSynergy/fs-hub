@@ -2,11 +2,12 @@
 //!
 //! Pattern: Command (executed) — each activity is a change (create/update/delete/log-only) with
 //! before/after images; the rules (sensitive, declared `writes`, size, marks, who decides which field,
-//! identical content) live here, the removal of marked objects in `apply_mark.rs`. The payload is taken,
+//! identical content) live here; a redacted entry (purged history) is skipped, never read as a delete, the removal of marked objects in `apply_mark.rs`. The payload is taken,
 //! not copied: it may hold two large images.
 
 use fs_hub_proto::{
-    MAX_OBJECT_BYTES, Manifest, json_len, keep_held_back, same_as_written, same_content,
+    MAX_OBJECT_BYTES, Manifest, is_redacted, json_len, keep_held_back, same_as_written,
+    same_content,
 };
 use fs_store::{Activity, ActivityId, ChangeSet, ObjectId};
 
@@ -46,6 +47,11 @@ enum Passage {
 impl ObjectCollector {
     pub(super) async fn apply_one(&self, manifest: &Manifest, a: &mut Activity) -> Result<Applied> {
         let program = manifest.program.as_str();
+        if is_redacted(a) {
+            // Purged history carries no state and is not a deletion: the hub's copy stays as it is. The
+            // client sends the object's current copy in its place (`fs-hub-client` `sync/push.rs`).
+            return Ok(Applied::Same);
+        }
         if !a.kind.changes_state() {
             // Log-only (Invite, Accept, ...): keep it if we hold the object, else it has no anchor here.
             let Some(obj) = self.objects.get(a.object).await? else {

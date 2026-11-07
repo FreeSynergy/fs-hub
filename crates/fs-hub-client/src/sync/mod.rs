@@ -4,9 +4,12 @@
 //! the steps in their own files.
 
 mod apply;
+#[cfg(test)]
+mod apply_redacted;
 mod once;
 mod pull;
 mod push;
+mod redacted;
 mod report;
 
 pub(crate) use once::sync_once;

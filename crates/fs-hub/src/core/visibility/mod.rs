@@ -1,11 +1,11 @@
 //! Who may see which activity.
 //!
 //! Pattern: Specification — a predicate over (program, declared reads, activity): other programs'
-//! activities of a declared type, never one's own.
+//! activities of a declared type, never one's own, never a redacted one (its type is unknown).
 
 use std::sync::Arc;
 
-use fs_hub_proto::summary_of;
+use fs_hub_proto::{is_redacted, summary_of};
 use fs_store::traits::ObjectRepository;
 use fs_store::{Activity, Envelope};
 
@@ -25,6 +25,9 @@ impl Visibility {
     /// Summary of the object an activity is about (state-changing: from the images; log-only: the
     /// stored object).
     pub async fn envelope_of(&self, a: &Activity) -> Result<Option<Envelope>> {
+        if is_redacted(a) {
+            return Ok(None); // the type is unknown, so nobody is entitled to it
+        }
         if a.kind.changes_state() {
             return Ok(summary_of(a));
         }
@@ -51,3 +54,6 @@ impl Visibility {
         Ok(self.visible_envelope(program, reads, a).await?.is_some())
     }
 }
+
+#[cfg(test)]
+mod tests;
