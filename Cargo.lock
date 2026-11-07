@@ -652,7 +652,7 @@ dependencies = [
  "fs-calendar-core",
  "fs-hub-client",
  "fs-hub-proto",
- "fs-interfaces 0.32.0",
+ "fs-interfaces 0.42.0",
  "fs-people-core",
  "fs-store",
  "futures",
@@ -674,7 +674,7 @@ dependencies = [
  "capnp-rpc",
  "chrono",
  "fs-hub-proto",
- "fs-interfaces 0.32.0",
+ "fs-interfaces 0.42.0",
  "fs-store",
  "futures",
  "serde_json",
@@ -689,7 +689,7 @@ version = "0.3.0"
 dependencies = [
  "capnp",
  "chrono",
- "fs-interfaces 0.32.0",
+ "fs-interfaces 0.42.0",
  "fs-store",
  "serde",
  "serde_json",
@@ -707,8 +707,8 @@ dependencies = [
 
 [[package]]
 name = "fs-interfaces"
-version = "0.32.0"
-source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.32.0#7561c557a45185b9edbc4ccc098c7f84ff58b5d6"
+version = "0.42.0"
+source = "git+https://github.com/FreeSynergy/fs-interfaces?tag=v0.42.0#57a2ba3655ba3ecbea9c91aa28fffbcb2f84dfb4"
 dependencies = [
  "capnp",
  "capnp-rpc",
