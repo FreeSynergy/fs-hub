@@ -9,8 +9,8 @@ use super::{Env, Prog, calendar, held, id, people, settle};
 use fs_hub_client::ChangeNotice;
 use fs_interfaces::events_capnp::items;
 use fs_interfaces::people_capnp::persons;
-use fs_store::traits::{ActivityLog, HistoryRetention};
-use fs_store::{ActivityFilter, ActivityKind};
+use fs_objects::traits::{ActivityLog, HistoryRetention};
+use fs_objects::{ActivityFilter, ActivityKind};
 use tokio::sync::mpsc::UnboundedReceiver;
 use uuid::Uuid;
 
@@ -33,7 +33,7 @@ pub fn deletes(notices: &[ChangeNotice], object: Uuid) -> usize {
 }
 
 /// The newest log entry of `object` in `store` is one without state.
-pub async fn last_entry_is_redacted(store: &fs_store::TursoStore, object: Uuid) -> ActivityKind {
+pub async fn last_entry_is_redacted(store: &fs_objects::TursoStore, object: Uuid) -> ActivityKind {
     let filter = ActivityFilter {
         object: Some(id(object)),
         ..Default::default()
@@ -89,7 +89,7 @@ impl Story {
     }
 
     /// The people program purges the card's history (ADR 0029).
-    pub async fn purge(&self) -> fs_store::PurgeReport {
+    pub async fn purge(&self) -> fs_objects::PurgeReport {
         let report = self.p.store.purge_object(id(self.ada)).await.unwrap();
         assert!(report.removed > 0);
         report

@@ -1,5 +1,5 @@
 //! `fs-hub`: the FreeSynergy hub, one per device (ADR 0019). It collects the objects of all programs in
-//! its own `fs-store`, keeps a cursor per program, and proposes matches. Programs never find each
+//! its own `fs-objects`, keeps a cursor per program, and proposes matches. Programs never find each
 //! other, only the hub. No domain logic lives here.
 //!
 //! Pattern: Facade over Strategies, with an Adapter to Cap'n Proto — see `DESIGN.md` for the map.

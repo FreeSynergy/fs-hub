@@ -5,7 +5,7 @@
 //!
 //! Pattern: Adapter — the JSON of a change set -> what routing needs of it.
 
-use fs_store::{Activity, Envelope};
+use fs_objects::{Activity, Envelope};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

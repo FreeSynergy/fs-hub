@@ -4,7 +4,7 @@
 //! channel; the worker thread executes them one by one.
 
 use fs_hub_proto::{ChangeNotice, ProgramInfo, Proposal, PullBatch, PushOutcome};
-use fs_store::{Activity, ActivityId};
+use fs_objects::{Activity, ActivityId};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::Result;

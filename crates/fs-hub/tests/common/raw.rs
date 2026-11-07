@@ -9,7 +9,7 @@ use fs_hub_proto::{
     read_activity_id, read_push_outcome, write_activity_id, write_manifest, write_pushed_list,
 };
 use fs_interfaces::rpc::{Connection, connect};
-use fs_store::{Activity, ActivityId};
+use fs_objects::{Activity, ActivityId};
 
 pub struct Raw {
     pub session: session::Client,

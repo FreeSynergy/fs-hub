@@ -4,7 +4,7 @@
 //! sides to keep applying idempotent.
 
 use chrono::{DateTime, Utc};
-use fs_store::StoredObject;
+use fs_objects::StoredObject;
 
 use crate::blank_object;
 

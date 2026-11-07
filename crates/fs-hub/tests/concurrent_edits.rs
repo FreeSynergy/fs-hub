@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, note, notes_manifest, session};
-use fs_store::ActivityKind;
-use fs_store::traits::{ActivityLog, ObjectRepository};
+use fs_objects::ActivityKind;
+use fs_objects::traits::{ActivityLog, ObjectRepository};
 
 #[tokio::test]
 async fn two_concurrent_edits_end_the_same_everywhere() {

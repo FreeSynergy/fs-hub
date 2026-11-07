@@ -4,8 +4,8 @@ mod common;
 
 use common::{Env, calendar, held, id, mark_sensitive, people, settle, tasks};
 use fs_hub_client::connect_at;
-use fs_store::traits::ObjectRepository;
-use fs_store::{Activity, ActivityId, ActivityKind, Envelope, StoredObject};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{Activity, ActivityId, ActivityKind, Envelope, StoredObject};
 
 #[tokio::test]
 async fn a_marked_object_stays_away_from_the_hub_and_its_copies_go() {
@@ -96,7 +96,7 @@ async fn an_entry_without_state_deletes_no_copy() {
             settle(&all).await;
             assert!(held(&c.store, task).await.is_some());
 
-            // What `purge_object` of fs-store 0.4 leaves for later writes. fs-store 0.2 cannot purge, so
+            // What `purge_object` of fs-objects 0.4 leaves for later writes. fs-objects 0.2 cannot purge, so
             // the entry is handed to the hub as it would be.
             let bare = |kind| Activity {
                 id: ActivityId::new(),

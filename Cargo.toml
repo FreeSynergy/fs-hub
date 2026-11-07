@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.89"
 
 [workspace.dependencies]
-fs-store = { git = "https://github.com/FreeSynergy/fs-store", tag = "v0.4.0" }
+fs-objects = { git = "https://github.com/FreeSynergy/fs-objects", tag = "v0.5.0" }
 fs-interfaces = { git = "https://github.com/FreeSynergy/fs-interfaces", tag = "v0.44.0", features = ["rpc"] }
 fs-hub-proto = { path = "crates/fs-hub-proto" }
 capnp = "0.27"

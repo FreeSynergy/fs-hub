@@ -5,8 +5,8 @@ mod common;
 
 use common::binary::{connect, kill, start};
 use common::note;
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, TursoStore};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, TursoStore};
 
 #[tokio::test]
 async fn a_replay_after_a_crash_overwrites_nothing() {

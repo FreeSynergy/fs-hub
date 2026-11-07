@@ -4,8 +4,8 @@ mod common;
 
 use common::raw::register;
 use common::{Env, note, notes_manifest, session};
-use fs_store::ActivityKind;
-use fs_store::traits::{ActivityLog, ObjectRepository};
+use fs_objects::ActivityKind;
+use fs_objects::traits::{ActivityLog, ObjectRepository};
 
 const MIB: usize = 1 << 20;
 /// More than one page, if the content came along.

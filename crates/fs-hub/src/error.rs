@@ -7,7 +7,7 @@
 pub enum Error {
     /// Object store error.
     #[error("store: {0}")]
-    Store(#[from] fs_store::Error),
+    Store(#[from] fs_objects::Error),
     /// Contract conversion error.
     #[error("contract: {0}")]
     Proto(#[from] fs_hub_proto::Error),

@@ -3,7 +3,7 @@
 use chrono::{TimeZone, Utc};
 use fs_hub_proto::common_capnp::envelope;
 use fs_hub_proto::{read_envelope, write_envelope};
-use fs_store::Envelope;
+use fs_objects::Envelope;
 
 fn roundtrip(e: &Envelope) -> Envelope {
     let mut msg = capnp::message::Builder::new_default();

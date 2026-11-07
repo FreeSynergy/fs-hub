@@ -4,7 +4,7 @@
 //! of a `CursorRepository`.
 
 use fs_hub_proto::Manifest;
-use fs_store::{ActivityId, ObjectId};
+use fs_objects::{ActivityId, ObjectId};
 use serde::{Deserialize, Serialize};
 
 /// Per-program state; cursors survive restarts.

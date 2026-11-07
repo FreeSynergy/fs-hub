@@ -1,7 +1,7 @@
 //! A redacted log entry is told apart from a deletion, which really has `after: null`.
 
 use fs_hub_proto::is_redacted;
-use fs_store::{Activity, ActivityId, ActivityKind, ObjectId};
+use fs_objects::{Activity, ActivityId, ActivityKind, ObjectId};
 
 fn entry(kind: ActivityKind, payload: serde_json::Value) -> Activity {
     Activity {
@@ -17,7 +17,7 @@ fn entry(kind: ActivityKind, payload: serde_json::Value) -> Activity {
 }
 
 #[test]
-fn the_fixed_payload_of_fs_store_is_redacted() {
+fn the_fixed_payload_of_fs_objects_is_redacted() {
     let p = serde_json::json!({"redacted": true, "before": "redacted", "after": "redacted"});
     for kind in [
         ActivityKind::Create,
@@ -46,5 +46,5 @@ fn a_real_delete_is_not_redacted() {
 fn the_store_refuses_to_read_images_from_it() {
     let p = serde_json::json!({"redacted": true, "before": "redacted", "after": "redacted"});
     let err = entry(ActivityKind::Update, p).change_set().unwrap_err();
-    assert!(matches!(err, fs_store::Error::Invalid(_)), "{err:?}");
+    assert!(matches!(err, fs_objects::Error::Invalid(_)), "{err:?}");
 }

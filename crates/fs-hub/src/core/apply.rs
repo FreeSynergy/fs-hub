@@ -9,7 +9,7 @@ use fs_hub_proto::{
     MAX_OBJECT_BYTES, Manifest, is_redacted, json_len, keep_held_back, same_as_written,
     same_content,
 };
-use fs_store::{Activity, ActivityId, ActivityKind, ChangeSet, ObjectId};
+use fs_objects::{Activity, ActivityId, ActivityKind, ChangeSet, ObjectId};
 
 use super::collector::ObjectCollector;
 use super::marked::Removal;

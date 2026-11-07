@@ -6,8 +6,8 @@ use common::parts::{Parts, pushed};
 use common::{Env, note, notes_manifest, session};
 use fs_hub::ActivitySink;
 use fs_hub_client::Error;
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, ActivityKind, TursoStore};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, ActivityKind, TursoStore};
 
 #[tokio::test]
 async fn at_the_reader_it_stops_without_ack_and_the_entry_comes_again() {

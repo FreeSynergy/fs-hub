@@ -11,8 +11,8 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use fs_store::traits::{HistoryRetention, ObjectRepository};
-use fs_store::{ActivityId, Envelope, ObjectId, Retention, StoredObject, Timestamp, TursoStore};
+use fs_objects::traits::{HistoryRetention, ObjectRepository};
+use fs_objects::{ActivityId, Envelope, ObjectId, Retention, StoredObject, Timestamp, TursoStore};
 
 use crate::Result;
 

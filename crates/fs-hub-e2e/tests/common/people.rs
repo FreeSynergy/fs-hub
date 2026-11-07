@@ -9,7 +9,7 @@ use fs_interfaces::people_capnp::{people, persons};
 use fs_interfaces::rpc::{read_envelope, write_uuid};
 use fs_people_core::PeopleRepo;
 use fs_people_server::PeopleServer;
-use fs_store::Store;
+use fs_objects::Store;
 use uuid::Uuid;
 
 use super::{Env, ME, Prog, serve_on};

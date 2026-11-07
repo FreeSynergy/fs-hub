@@ -8,8 +8,8 @@ use std::time::Duration;
 use common::raw::register;
 use common::{Env, config, note, note_of_ada, notes_manifest, session};
 use fs_hub::Daemon;
-use fs_store::ActivityFilter;
-use fs_store::traits::{ActivityLog, ObjectRepository};
+use fs_objects::ActivityFilter;
+use fs_objects::traits::{ActivityLog, ObjectRepository};
 
 #[tokio::test]
 async fn original_at_arrives_and_survives_a_restart() {

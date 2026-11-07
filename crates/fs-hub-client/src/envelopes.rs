@@ -17,7 +17,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use fs_hub_proto::PullBatch;
-use fs_store::{ActivityId, ActivityKind, Envelope, ObjectId, Timestamp};
+use fs_objects::{ActivityId, ActivityKind, Envelope, ObjectId, Timestamp};
 
 /// A place in the hub's log for a reader of summaries. Keep it to go on, also as text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

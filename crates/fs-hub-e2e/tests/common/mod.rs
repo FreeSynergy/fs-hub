@@ -16,8 +16,8 @@ use std::sync::Arc;
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubSession, HubStatus, Manifest, connect_at};
 use fs_interfaces::rpc::{bind_socket, serve};
-use fs_store::traits::ObjectRepository;
-use fs_store::{ObjectId, OpenOptions, StoredObject, TursoStore};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{ObjectId, OpenOptions, StoredObject, TursoStore};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -139,9 +139,9 @@ pub async fn lift_mark(store: &TursoStore, object: Uuid, who: &str) {
 
 /// How many objects of `object_type` this store holds.
 pub async fn count(store: &TursoStore, object_type: &str) -> usize {
-    use fs_store::traits::ObjectQuery;
+    use fs_objects::traits::ObjectQuery;
     store
-        .query(&fs_store::Query::new().of_type(object_type))
+        .query(&fs_objects::Query::new().of_type(object_type))
         .await
         .unwrap()
         .len()

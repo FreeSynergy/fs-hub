@@ -2,13 +2,13 @@
 //!
 //! Pattern: none (tests of `with_current_copy`).
 
-use fs_store::{Activity, ActivityKind, Envelope, ObjectId, StoredObject};
+use fs_objects::{Activity, ActivityKind, Envelope, ObjectId, StoredObject};
 
 use super::redacted::with_current_copy;
 
 fn entry(kind: ActivityKind, payload: serde_json::Value) -> Activity {
     Activity {
-        id: fs_store::ActivityId::new(),
+        id: fs_objects::ActivityId::new(),
         kind,
         object: ObjectId::new(),
         actor: "a".into(),
@@ -57,7 +57,7 @@ fn a_redacted_entry_becomes_the_current_copy() {
         ActivityKind::Update,
         "not a delete: the object is there"
     );
-    let cs: fs_store::ChangeSet = serde_json::from_value(out.payload).unwrap();
+    let cs: fs_objects::ChangeSet = serde_json::from_value(out.payload).unwrap();
     assert_eq!(cs.after.unwrap().envelope.id, current.envelope.id);
 }
 
@@ -65,6 +65,6 @@ fn a_redacted_entry_becomes_the_current_copy() {
 fn a_redacted_entry_of_a_gone_object_is_a_delete() {
     let out = with_current_copy(entry(ActivityKind::Update, redacted()), None);
     assert_eq!(out.kind, ActivityKind::Delete);
-    let cs: fs_store::ChangeSet = serde_json::from_value(out.payload).unwrap();
+    let cs: fs_objects::ChangeSet = serde_json::from_value(out.payload).unwrap();
     assert!(cs.after.is_none() && cs.before.is_none());
 }

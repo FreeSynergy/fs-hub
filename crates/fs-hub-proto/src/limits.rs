@@ -13,7 +13,7 @@ use capnp::message::ReaderOptions;
 use fs_interfaces::rpc::{
     MAX_INTAKE_BYTES, MAX_MESSAGE_BYTES, MAX_PAGE_BYTES, Problem, TOO_LARGE, envelope_weight,
 };
-use fs_store::{Activity, Envelope};
+use fs_objects::{Activity, Envelope};
 use serde::Serialize;
 
 /// Largest object the hub takes: one image, as JSON. The same limit every server has.
@@ -92,8 +92,8 @@ pub fn too_large(a: &Activity, bytes: usize) -> Problem {
 }
 
 /// A failure that may pass: nothing is wrong with the entry, so no cursor may move past it.
-pub fn is_transient(e: &fs_store::Error) -> bool {
-    matches!(e, fs_store::Error::Backend(_) | fs_store::Error::Key(_))
+pub fn is_transient(e: &fs_objects::Error) -> bool {
+    matches!(e, fs_objects::Error::Backend(_) | fs_objects::Error::Key(_))
 }
 
 /// How many log entries to read at once. Each may hold two large images, and what does not fit is read

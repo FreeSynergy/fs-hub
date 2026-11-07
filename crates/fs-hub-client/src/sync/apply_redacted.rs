@@ -2,8 +2,8 @@
 //!
 //! Pattern: none (tests of `apply` for entries without state).
 
-use fs_store::traits::ObjectRepository;
-use fs_store::{Activity, ActivityId, ActivityKind, Envelope, StoredObject, TursoStore};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{Activity, ActivityId, ActivityKind, Envelope, StoredObject, TursoStore};
 
 use super::apply::apply;
 

@@ -1,6 +1,6 @@
 //! Activities on the wire.
 //!
-//! Pattern: Adapter — `fs_store::Activity` <-> `hub.capnp` `Activity`, one form per direction: a push
+//! Pattern: Adapter — `fs_objects::Activity` <-> `hub.capnp` `Activity`, one form per direction: a push
 //! says when the program did it, an answer of `pull` carries what the hub knows besides the log entry.
 //! The typed envelope is the routing summary, the JSON payload carries the full images; a `Null`
 //! payload stays empty on the wire. `originalActor` is written by nobody: only the person can release
@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 
 use fs_interfaces::rpc::{read_envelope, write_envelope};
-use fs_store::{Activity, ActivityId, ActivityKind, Envelope, ObjectId};
+use fs_objects::{Activity, ActivityId, ActivityKind, Envelope, ObjectId};
 
 use super::ids::{from_ms, ms, read_activity_id, read_uuid, write_activity_id, write_uuid};
 use super::images::images_of;
@@ -21,7 +21,7 @@ fn write_activity(
     a: &Activity,
     actor: &str,
     summary: Option<&Envelope>,
-    original_at: Option<fs_store::Timestamp>,
+    original_at: Option<fs_objects::Timestamp>,
 ) -> Result<()> {
     write_activity_id(b.reborrow().init_id(), Some(a.id));
     b.set_kind(a.kind.as_str());
@@ -74,7 +74,7 @@ fn read_activity(r: hub::activity::Reader<'_>) -> Result<Activity> {
     })
 }
 
-fn read_original_at(r: hub::activity::Reader<'_>) -> Result<Option<fs_store::Timestamp>> {
+fn read_original_at(r: hub::activity::Reader<'_>) -> Result<Option<fs_objects::Timestamp>> {
     if !r.has_original_at() {
         return Ok(None);
     }

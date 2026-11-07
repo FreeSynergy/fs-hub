@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use fs_hub_proto::{PageBudget, PullBatch, ScanSize, activity_weight};
-use fs_store::traits::{ActivityLog, ChangeFeed};
-use fs_store::{Activity, ActivityFilter, ActivityId, ObjectId};
+use fs_objects::traits::{ActivityLog, ChangeFeed};
+use fs_objects::{Activity, ActivityFilter, ActivityId, ObjectId};
 use tokio::sync::broadcast;
 
 use super::activity::ActivitySource;

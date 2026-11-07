@@ -9,7 +9,7 @@ use fs_calendar_server::CalendarServer;
 use fs_hub_client::Manifest;
 use fs_interfaces::events_capnp::{events, items};
 use fs_interfaces::rpc::{read_envelope, write_uuid};
-use fs_store::Store;
+use fs_objects::Store;
 use uuid::Uuid;
 
 use super::{Env, ME, Prog, serve_on};

@@ -12,7 +12,7 @@
 //! Pattern: Specification — one rule, used by every way out of the hub.
 
 use chrono::{DateTime, Utc};
-use fs_store::{Envelope, ObjectId, StoredObject};
+use fs_objects::{Envelope, ObjectId, StoredObject};
 use serde::Deserialize;
 use serde_json::Value;
 
