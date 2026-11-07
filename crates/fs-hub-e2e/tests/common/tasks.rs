@@ -7,7 +7,7 @@ use std::sync::Arc;
 use fs_hub_client::Manifest;
 use fs_interfaces::rpc::{read_envelope, write_uuid};
 use fs_interfaces::tasks_capnp::{items, tasks};
-use fs_store::Store;
+use fs_objects::Store;
 use fs_tasks_core::TaskRepo;
 use fs_tasks_server::TasksServer;
 use uuid::Uuid;

@@ -9,7 +9,7 @@ mod common;
 use common::story::{Story, deletes, last_entry_is_redacted};
 use common::{held, mark_sensitive};
 use fs_hub_client::ChangeNotice;
-use fs_store::ActivityKind;
+use fs_objects::ActivityKind;
 
 #[tokio::test]
 async fn a_change_after_a_purge_keeps_the_copy_and_tells_no_deletion() {

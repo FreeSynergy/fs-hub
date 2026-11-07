@@ -7,7 +7,7 @@ mod common;
 
 use common::story::{Story, removal};
 use common::{held, lift_mark, mark_sensitive, people};
-use fs_store::{Activity, ActivityId, ActivityKind};
+use fs_objects::{Activity, ActivityId, ActivityKind};
 
 #[tokio::test]
 async fn the_owner_lifts_a_mark_after_a_purge() {

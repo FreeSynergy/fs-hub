@@ -5,7 +5,7 @@
 //! with the hub's cursor in front of the entry, so it comes again.
 
 use fs_hub_proto::is_transient;
-use fs_store::Store;
+use fs_objects::Store;
 
 use super::apply::apply;
 use super::report::SyncReport;

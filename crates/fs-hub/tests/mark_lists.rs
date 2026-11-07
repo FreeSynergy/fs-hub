@@ -4,8 +4,8 @@ mod common;
 
 use common::note;
 use fs_hub::{MarkedRemovals, OriginalTimes, StoreMarked, StoreOriginals};
-use fs_store::TursoStore;
-use fs_store::traits::ObjectRepository;
+use fs_objects::TursoStore;
+use fs_objects::traits::ObjectRepository;
 
 /// A foreign object at the id of an entry on either list is no entry: reading stays possible.
 #[tokio::test]
@@ -18,6 +18,6 @@ async fn each_list_reads_only_its_own_kind() {
     let marks = StoreMarked::new(store.clone()).await.unwrap();
     assert_eq!(marks.find(id).await.unwrap(), None);
     let times = StoreOriginals::new(store).await.unwrap();
-    let entry = fs_store::ActivityId::from_uuid(id.as_uuid()).unwrap();
+    let entry = fs_objects::ActivityId::from_uuid(id.as_uuid()).unwrap();
     assert_eq!(times.find(entry).await.unwrap(), None);
 }

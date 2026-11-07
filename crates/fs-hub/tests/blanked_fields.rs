@@ -11,8 +11,8 @@ use capnp_rpc::new_client;
 use common::raw::{audience_of, register};
 use common::{Env, note_of_ada, notes_manifest, session};
 use fs_hub_proto::common_capnp::{change, change_listener};
-use fs_store::traits::{ActivityLog, ObjectRepository};
-use fs_store::{ActivityFilter, StoredObject};
+use fs_objects::traits::{ActivityLog, ObjectRepository};
+use fs_objects::{ActivityFilter, StoredObject};
 use tokio::sync::mpsc;
 
 fn assert_blank(o: &StoredObject) {
@@ -37,7 +37,7 @@ async fn a_full_round_trip_overwrites_nothing() {
     owner_store.put(original, "ada").await.unwrap();
     owner.sync_once(owner_store.as_ref()).await.unwrap();
     let hub = env.hub().core().store();
-    let log_len = |s: std::sync::Arc<dyn fs_store::Store>| async move {
+    let log_len = |s: std::sync::Arc<dyn fs_objects::Store>| async move {
         s.activities(&ActivityFilter::default())
             .await
             .unwrap()

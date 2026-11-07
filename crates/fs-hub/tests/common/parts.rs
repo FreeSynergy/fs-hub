@@ -10,7 +10,7 @@ use fs_hub::{
     Removal, StoreCursors, StoreMarked, StoreOriginals, StoredRegistry, Visibility,
 };
 use fs_hub_proto::Pushed;
-use fs_store::{Activity, ActivityId, ObjectId, Timestamp, TursoStore};
+use fs_objects::{Activity, ActivityId, ObjectId, Timestamp, TursoStore};
 
 use super::notes_manifest;
 
@@ -22,7 +22,7 @@ pub struct Faults {
 }
 
 fn injected() -> Error {
-    Error::Store(fs_store::Error::Backend("injected".into()))
+    Error::Store(fs_objects::Error::Backend("injected".into()))
 }
 
 struct FaultyMarks(Arc<dyn MarkedRemovals>, Arc<Faults>);

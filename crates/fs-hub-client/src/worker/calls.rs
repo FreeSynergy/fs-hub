@@ -7,7 +7,7 @@ use fs_hub_proto::{
     Manifest, ProgramInfo, Proposal, PullBatch, PushOutcome, read_program_info, read_proposal,
     read_pull_batch, read_push_outcome, write_activity_id, write_manifest, write_pushed_list,
 };
-use fs_store::{Activity, ActivityId};
+use fs_objects::{Activity, ActivityId};
 
 use crate::Result;
 

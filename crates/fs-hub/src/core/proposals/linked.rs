@@ -5,8 +5,8 @@
 
 use std::collections::BTreeSet;
 
-use fs_store::traits::ObjectQuery;
-use fs_store::{ObjectId, Query};
+use fs_objects::traits::ObjectQuery;
+use fs_objects::{ObjectId, Query};
 
 use crate::Result;
 

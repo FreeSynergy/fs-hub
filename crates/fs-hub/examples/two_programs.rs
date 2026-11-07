@@ -8,7 +8,7 @@ use fs_calendar_core::{CalendarRepo, Event};
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubStatus, Manifest, connect_at};
 use fs_people_core::{Card, PeopleRepo};
-use fs_store::{Query, Store, TursoStore};
+use fs_objects::{Query, Store, TursoStore};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

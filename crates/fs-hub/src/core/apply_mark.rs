@@ -9,7 +9,7 @@
 //! Pattern: Command (executed), with a recoverable order of steps.
 
 use fs_hub_proto::{Manifest, summary_of};
-use fs_store::{ActivityFilter, ActivityId, ObjectId};
+use fs_objects::{ActivityFilter, ActivityId, ObjectId};
 
 use super::apply::Applied;
 use super::collector::ObjectCollector;

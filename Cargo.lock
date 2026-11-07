@@ -670,7 +670,7 @@ dependencies = [
  "chrono",
  "fs-interfaces 0.44.0",
  "fs-jscalendar",
- "fs-store",
+ "fs-objects",
  "fs-tasks-core",
  "rrule",
  "serde",
@@ -689,7 +689,7 @@ dependencies = [
  "chrono",
  "fs-calendar-core",
  "fs-interfaces 0.44.0",
- "fs-store",
+ "fs-objects",
  "serde_json",
  "tokio",
 ]
@@ -707,7 +707,7 @@ dependencies = [
  "fs-hub-proto",
  "fs-interfaces 0.44.0",
  "fs-people-core",
- "fs-store",
+ "fs-objects",
  "futures",
  "serde",
  "serde_json",
@@ -728,7 +728,7 @@ dependencies = [
  "chrono",
  "fs-hub-proto",
  "fs-interfaces 0.44.0",
- "fs-store",
+ "fs-objects",
  "futures",
  "serde_json",
  "thiserror",
@@ -750,7 +750,7 @@ dependencies = [
  "fs-interfaces 0.44.0",
  "fs-people-core",
  "fs-people-server",
- "fs-store",
+ "fs-objects",
  "fs-tasks-core",
  "fs-tasks-server",
  "serde_json",
@@ -766,7 +766,7 @@ dependencies = [
  "capnp",
  "chrono",
  "fs-interfaces 0.44.0",
- "fs-store",
+ "fs-objects",
  "serde",
  "serde_json",
  "thiserror",
@@ -781,7 +781,7 @@ dependencies = [
  "capnp",
  "capnp-rpc",
  "chrono",
- "fs-store",
+ "fs-objects",
  "futures",
  "rustix 1.1.6",
  "tokio",
@@ -797,7 +797,7 @@ dependencies = [
  "capnp",
  "capnp-rpc",
  "chrono",
- "fs-store",
+ "fs-objects",
  "futures",
  "rustix 1.1.6",
  "tokio",
@@ -829,7 +829,7 @@ dependencies = [
  "calcard",
  "chrono",
  "fs-interfaces 0.43.0",
- "fs-store",
+ "fs-objects",
  "serde",
  "serde_json",
  "thiserror",
@@ -845,14 +845,14 @@ dependencies = [
  "capnp-rpc",
  "fs-interfaces 0.43.0",
  "fs-people-core",
- "fs-store",
+ "fs-objects",
  "serde_json",
 ]
 
 [[package]]
-name = "fs-store"
+name = "fs-objects"
 version = "0.4.0"
-source = "git+https://github.com/FreeSynergy/fs-store?tag=v0.4.0#3f20a2a180a64af66c8db35cad4c49a863e57bfb"
+source = "git+https://github.com/FreeSynergy/fs-objects?tag=v0.4.0#3f20a2a180a64af66c8db35cad4c49a863e57bfb"
 dependencies = [
  "async-trait",
  "base64",
@@ -877,7 +877,7 @@ dependencies = [
  "chrono",
  "fs-interfaces 0.44.0",
  "fs-jscalendar",
- "fs-store",
+ "fs-objects",
  "serde",
  "serde_json",
  "thiserror",
@@ -892,7 +892,7 @@ dependencies = [
  "capnp",
  "capnp-rpc",
  "fs-interfaces 0.44.0",
- "fs-store",
+ "fs-objects",
  "fs-tasks-core",
  "serde_json",
 ]

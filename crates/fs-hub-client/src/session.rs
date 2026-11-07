@@ -2,7 +2,7 @@
 //!
 //! Pattern: Facade — typed async methods hiding the command channel to the RPC thread.
 
-use fs_store::{Activity, ActivityId};
+use fs_objects::{Activity, ActivityId};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::command::Cmd;
@@ -102,7 +102,7 @@ impl HubSession {
     }
 
     /// Push the unsynced log, pull what others wrote, mark synced. See [`crate::SyncReport`].
-    pub async fn sync_once(&self, store: &dyn fs_store::Store) -> Result<crate::SyncReport> {
+    pub async fn sync_once(&self, store: &dyn fs_objects::Store) -> Result<crate::SyncReport> {
         crate::sync::sync_once(self, store).await
     }
 
@@ -111,9 +111,9 @@ impl HubSession {
     /// heard of. Fail closed: if the sync fails, or entries of the object stay unsynced, nothing is purged.
     pub async fn sync_then_purge(
         &self,
-        store: &dyn fs_store::Store,
-        object: fs_store::ObjectId,
-    ) -> Result<fs_store::PurgeReport> {
+        store: &dyn fs_objects::Store,
+        object: fs_objects::ObjectId,
+    ) -> Result<fs_objects::PurgeReport> {
         crate::sync::sync_then_purge(self, store, object).await
     }
 }

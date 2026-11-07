@@ -14,7 +14,7 @@ use fs_hub_proto::{
     MAX_OBJECT_BYTES, PageBudget, Problem, PushOutcome, activity_weight, images_of, json_len,
     sensitive_stub, summary_of, too_large,
 };
-use fs_store::{Activity, Envelope, ObjectId};
+use fs_objects::{Activity, Envelope, ObjectId};
 
 /// What to send and what stays here.
 #[derive(Debug, Default)]

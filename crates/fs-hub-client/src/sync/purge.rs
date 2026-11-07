@@ -5,7 +5,7 @@
 //! unmarked copy and nothing to push the mark with (ADR 0029). So: sync first, check that nothing of the
 //! object is left unsynced, then purge. Anything that goes wrong before the purge means no purge.
 
-use fs_store::{ActivityFilter, ObjectId, PurgeReport, Store};
+use fs_objects::{ActivityFilter, ObjectId, PurgeReport, Store};
 
 use super::once::sync_once;
 use crate::{Error, HubSession, Result};

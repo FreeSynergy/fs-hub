@@ -19,7 +19,7 @@ pub enum Error {
     Proto(#[from] fs_hub_proto::Error),
     /// Local store failure.
     #[error("store: {0}")]
-    Store(#[from] fs_store::Error),
+    Store(#[from] fs_objects::Error),
     /// I/O failure.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
@@ -33,7 +33,7 @@ pub enum Error {
     },
     /// The object has log entries the hub has not taken; purging them would lose them.
     #[error("object {0:?} has unsynced log entries: not purged")]
-    NotSynced(fs_store::ObjectId),
+    NotSynced(fs_objects::ObjectId),
     /// The hub answered something the protocol does not allow.
     #[error("protocol: {0}")]
     Protocol(String),

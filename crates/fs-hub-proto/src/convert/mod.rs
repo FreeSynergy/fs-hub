@@ -1,4 +1,4 @@
-//! Conversions between wire (Cap'n Proto) and `fs-store` / plain Rust types.
+//! Conversions between wire (Cap'n Proto) and `fs-objects` / plain Rust types.
 //!
 //! Pattern: Adapter — one file per wire struct; callers (server, client) never touch the
 //! generated builders/readers directly.

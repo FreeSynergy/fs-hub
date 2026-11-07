@@ -3,8 +3,8 @@
 mod common;
 
 use common::{Env, contacts_manifest, note, notes_manifest, session};
-use fs_store::traits::ObjectRepository;
-use fs_store::{Envelope, StoredObject};
+use fs_objects::traits::ObjectRepository;
+use fs_objects::{Envelope, StoredObject};
 
 fn profile(name: &str) -> StoredObject {
     StoredObject::new(

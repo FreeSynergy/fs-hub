@@ -6,7 +6,7 @@ use common::{Env, config, contacts_manifest, person, session};
 use fs_hub::Daemon;
 use fs_hub_client::Manifest;
 use fs_people_core::PeopleRepo;
-use fs_store::{ActivityFilter, Store};
+use fs_objects::{ActivityFilter, Store};
 
 #[tokio::test]
 async fn push_is_idempotent_and_state_survives_a_restart() {

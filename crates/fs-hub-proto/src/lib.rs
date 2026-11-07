@@ -1,5 +1,5 @@
 //! `fs-hub-proto`: the Cap'n Proto contract of the hub (`schema/hub.capnp`) and conversions between the
-//! wire types and `fs-store` types. Shared by the daemon and the client library.
+//! wire types and `fs-objects` types. Shared by the daemon and the client library.
 //!
 //! Pattern: Adapter — `convert` translates between the generated wire code and plain Rust types.
 //! The generated code comes from `fs-interfaces` (ADR 0040, 0045).

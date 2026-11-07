@@ -16,7 +16,7 @@ pub enum Error {
     Utf8(#[from] std::str::Utf8Error),
     /// Store error (ids, kinds).
     #[error("store: {0}")]
-    Store(#[from] fs_store::Error),
+    Store(#[from] fs_objects::Error),
     /// JSON payload error.
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),

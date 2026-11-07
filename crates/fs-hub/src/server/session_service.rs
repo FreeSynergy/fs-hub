@@ -13,7 +13,7 @@ use fs_hub_proto::{
 };
 
 use fs_interfaces::rpc::invalid_request;
-use fs_store::ActivityId;
+use fs_objects::ActivityId;
 
 use super::errors::rpc_err;
 use super::subscription::subscribe;
