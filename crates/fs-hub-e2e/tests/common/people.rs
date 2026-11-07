@@ -57,16 +57,24 @@ fn card(uid: &str, name: &str, email: &str, phone: &str) -> String {
 impl Prog<persons::Client> {
     pub async fn create(&self, uid: &str, name: &str, email: &str, phone: &str) -> Uuid {
         let mut req = self.root.create_request();
-        req.get().set_jscontact(card(uid, name, email, phone).as_str());
+        req.get()
+            .set_jscontact(card(uid, name, email, phone).as_str());
         let answer = req.send().promise.await.unwrap();
-        let envelope = answer.get().unwrap().get_person().unwrap().get_envelope().unwrap();
+        let envelope = answer
+            .get()
+            .unwrap()
+            .get_person()
+            .unwrap()
+            .get_envelope()
+            .unwrap();
         read_envelope(envelope).unwrap().id.as_uuid()
     }
 
     pub async fn change(&self, id: Uuid, uid: &str, name: &str, email: &str, phone: &str) {
         let mut req = self.root.update_request();
         write_uuid(req.get().init_id(), Some(id));
-        req.get().set_jscontact(card(uid, name, email, phone).as_str());
+        req.get()
+            .set_jscontact(card(uid, name, email, phone).as_str());
         req.send().promise.await.unwrap();
     }
 

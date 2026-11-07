@@ -15,8 +15,8 @@ use std::sync::Arc;
 use fs_hub::{Config, Daemon};
 use fs_hub_client::{HubSession, HubStatus, Manifest, connect_at};
 use fs_interfaces::rpc::{bind_socket, serve};
-use fs_store::{ObjectId, OpenOptions, StoredObject, TursoStore};
 use fs_store::traits::ObjectRepository;
+use fs_store::{ObjectId, OpenOptions, StoredObject, TursoStore};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -127,4 +127,28 @@ pub async fn mark_sensitive(store: &TursoStore, object: Uuid, who: &str) {
     let mut o: StoredObject = store.get(id(object)).await.unwrap().unwrap();
     o.envelope.sensitive = vec!["pd:HealthRecord".into()];
     store.put(o, who).await.unwrap();
+}
+
+/// How many objects of `object_type` this store holds.
+pub async fn count(store: &TursoStore, object_type: &str) -> usize {
+    use fs_store::traits::ObjectQuery;
+    store
+        .query(&fs_store::Query::new().of_type(object_type))
+        .await
+        .unwrap()
+        .len()
+}
+
+/// The object as this store holds it.
+pub async fn held(store: &TursoStore, object: Uuid) -> Option<StoredObject> {
+    store.get(id(object)).await.unwrap()
+}
+
+/// Two rounds so that everything every program wrote has arrived everywhere.
+pub async fn settle(all: &[(&HubSession, &TursoStore)]) {
+    for _ in 0..2 {
+        for (session, store) in all {
+            session.sync_once(*store).await.unwrap();
+        }
+    }
 }

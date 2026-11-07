@@ -58,7 +58,13 @@ impl Prog<items::Client> {
         let mut req = self.root.create_request();
         req.get().set_jscalendar(json(uid, title, start).as_str());
         let answer = req.send().promise.await.unwrap();
-        let envelope = answer.get().unwrap().get_event().unwrap().get_envelope().unwrap();
+        let envelope = answer
+            .get()
+            .unwrap()
+            .get_event()
+            .unwrap()
+            .get_envelope()
+            .unwrap();
         read_envelope(envelope).unwrap().id.as_uuid()
     }
 
