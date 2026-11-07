@@ -17,7 +17,7 @@ use super::{Env, ME, Prog, serve_on};
 /// What a people program tells the hub. It hands over its links (`Relationship`), reads no type of
 /// another program but cards.
 pub fn manifest(name: &str) -> Manifest {
-    Manifest::new(name, "0.4.0")
+    Manifest::new(name, "0.5.0")
         .read(&["Profile"])
         .write(&["Profile", "Relationship"])
         .content(&["application/jscontact+json"])

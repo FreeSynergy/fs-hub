@@ -21,9 +21,9 @@ uuid = "1"
 chrono.workspace = true
 
 [dev-dependencies]
-fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.4.0" }
-fs-people-server = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.4.0" }
-fs-tasks-core = { git = "https://github.com/FreeSynergy/fs-tasks", tag = "v0.6.0", features = ["contract"] }
-fs-tasks-server = { git = "https://github.com/FreeSynergy/fs-tasks", tag = "v0.6.0" }
-fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.5.0", features = ["contract"] }
-fs-calendar-server = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.5.0" }
+fs-people-core = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.5.0" }
+fs-people-server = { git = "https://github.com/FreeSynergy/fs-people", tag = "v0.5.0" }
+fs-tasks-core = { git = "https://github.com/FreeSynergy/fs-tasks", tag = "v0.7.0", features = ["contract"] }
+fs-tasks-server = { git = "https://github.com/FreeSynergy/fs-tasks", tag = "v0.7.0" }
+fs-calendar-core = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.6.0", features = ["contract"] }
+fs-calendar-server = { git = "https://github.com/FreeSynergy/fs-calendar", tag = "v0.6.0" }

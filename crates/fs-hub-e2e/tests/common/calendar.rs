@@ -16,7 +16,7 @@ use super::{Env, ME, Prog, serve_on};
 
 /// The calendar writes `Event` and reads cards and tasks.
 pub fn manifest(name: &str) -> Manifest {
-    Manifest::new(name, "0.5.0")
+    Manifest::new(name, "0.6.0")
         .read(&["Profile", "Task"])
         .write(&["Event"])
         .content(&["application/jscalendar+json"])

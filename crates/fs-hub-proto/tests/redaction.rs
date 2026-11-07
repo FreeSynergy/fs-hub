@@ -41,3 +41,10 @@ fn a_real_delete_is_not_redacted() {
     let text = serde_json::json!({"redacted": "true"});
     assert!(!is_redacted(&entry(ActivityKind::Update, text)));
 }
+
+#[test]
+fn the_store_refuses_to_read_images_from_it() {
+    let p = serde_json::json!({"redacted": true, "before": "redacted", "after": "redacted"});
+    let err = entry(ActivityKind::Update, p).change_set().unwrap_err();
+    assert!(matches!(err, fs_store::Error::Invalid(_)), "{err:?}");
+}
