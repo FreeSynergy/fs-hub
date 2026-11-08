@@ -8,7 +8,7 @@ What is different here: every program works alone without the hub and hands its 
 
 ## What it can do today
 
-Latest tag: `v0.4.0`.
+Latest tag: `v0.0.1`.
 
 - A daemon on a local Unix socket that refuses a second hub and cleans up after itself.
 - Programs register with what they write and what they read; the hub keeps a pull position per program, which survives restarts.
