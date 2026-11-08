@@ -1,6 +1,7 @@
 //! End-to-end: the fields that name a person do not reach a reader, and going round loses nothing.
 //!
 //! PROVISIONAL, see `delivery.rs` in `fs-hub-proto`.
+#![allow(clippy::unused_async_trait_impl)] // the capnp `change_listener::Server` trait dictates `async fn`
 
 mod common;
 

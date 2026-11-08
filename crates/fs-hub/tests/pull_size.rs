@@ -1,4 +1,5 @@
 //! End-to-end: answers are cut by size, not only by count (80 notes of 1 MiB killed the connection).
+#![allow(clippy::assert_is_empty)] // tests: plain `is_empty()` asserts read clearer than comparing to typed empty arrays
 
 mod common;
 

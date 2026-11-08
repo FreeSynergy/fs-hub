@@ -1,4 +1,5 @@
 //! What must stay home stays home: marked objects, role assignments, and entries without state.
+#![allow(clippy::assert_is_empty)] // tests: plain `is_empty()` asserts read clearer than comparing to typed empty arrays
 
 mod common;
 

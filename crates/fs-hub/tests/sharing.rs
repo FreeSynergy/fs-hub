@@ -1,4 +1,5 @@
 //! End-to-end: Programs share work through the hub (contacts -> calendar), updates and deletes.
+#![allow(clippy::assert_is_empty, clippy::too_many_lines)] // one end-to-end story reads best in one test; `is_empty()` asserts read clearer
 
 mod common;
 

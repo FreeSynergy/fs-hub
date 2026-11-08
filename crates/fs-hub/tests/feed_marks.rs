@@ -30,8 +30,7 @@ impl change_listener::Server for Slow {
         self.gate.notified().await;
         self.gate.notify_one();
         let told = match params.get()?.get_change()?.which()? {
-            change::Which::Created(e) => e?.get_name()?.to_string()?,
-            change::Which::Updated(e) => e?.get_name()?.to_string()?,
+            change::Which::Created(e) | change::Which::Updated(e) => e?.get_name()?.to_string()?,
             change::Which::Deleted(_) => "deleted".to_string(),
         };
         let _ = self.heard.send(told);

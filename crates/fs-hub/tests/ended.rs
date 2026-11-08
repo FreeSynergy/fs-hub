@@ -1,5 +1,6 @@
 //! End-to-end: how a feed ends when the consumer is the reason (lag: `lag.rs`; a consumer that falls
 //! too far behind: `rpc_feed.rs` in `fs-interfaces`).
+#![allow(clippy::unused_async_trait_impl)] // the capnp `change_listener::Server` trait dictates `async fn`
 
 mod common;
 

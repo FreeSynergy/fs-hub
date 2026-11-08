@@ -1,4 +1,5 @@
 //! End-to-end: an object above the limit is refused, and nobody gets stuck on it.
+#![allow(clippy::assert_is_empty)] // tests: plain `is_empty()` asserts read clearer than comparing to typed empty arrays
 
 mod common;
 

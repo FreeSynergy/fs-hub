@@ -1,5 +1,6 @@
 //! End-to-end: `originalAt` travels and stays; `originalActor` is delivered to nobody; a sensitive
 //! object says neither (ADR 0029).
+#![allow(clippy::assert_is_empty)] // tests: plain `is_empty()` asserts read clearer than comparing to typed empty arrays
 
 mod common;
 

@@ -1,4 +1,5 @@
 //! End-to-end: no program gets read access to `Relationship` (role privacy, sprint thread 3 point 5).
+#![allow(clippy::assert_is_empty)] // tests: plain `is_empty()` asserts read clearer than comparing to typed empty arrays
 
 mod common;
 
